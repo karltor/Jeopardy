@@ -291,18 +291,13 @@ function renderEditGrid() {
                 cellWrapper.appendChild(indicator);
             }
 
-            // In media mode, clicking the cell opens file picker
+            // In media mode, show a click overlay that opens file picker
             if (mediaMode) {
                 cellWrapper.classList.add('media-pick-mode');
-                cellWrapper.onclick = (e) => {
-                    if (e.target.tagName === 'TEXTAREA') return;
-                    pickMedia(col, row, mediaMode);
-                };
-                // Add a click overlay on the textarea too
                 const overlay = document.createElement('div');
                 overlay.className = 'media-pick-overlay';
                 overlay.textContent = mediaMode === 'image' ? '🖼' : '🔊';
-                overlay.onclick = () => pickMedia(col, row, mediaMode);
+                overlay.onclick = (e) => { e.stopPropagation(); pickMedia(col, row, mediaMode); };
                 cellWrapper.appendChild(overlay);
             }
 
