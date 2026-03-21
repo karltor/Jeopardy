@@ -55,15 +55,22 @@ async function joinRoom(code) {
             document.getElementById('display-room').textContent = roomId;
 
             const roomData = docSnap.data();
-            const select = document.getElementById('team-select');
-            select.innerHTML = '<option value="" disabled selected>-- Välj ditt lag --</option>'; // Rensa innan påfyllning
-            
+            const grid = document.getElementById('team-select-grid');
+            const hiddenInput = document.getElementById('team-select');
+            grid.innerHTML = '';
+            hiddenInput.value = '';
+
             if (roomData.teams && roomData.teams.length > 0) {
                 roomData.teams.forEach(team => {
-                    const opt = document.createElement('option'); 
-                    opt.value = team; 
-                    opt.textContent = team; 
-                    select.appendChild(opt);
+                    const box = document.createElement('div');
+                    box.className = 'team-box';
+                    box.textContent = team;
+                    box.onclick = () => {
+                        grid.querySelectorAll('.team-box').forEach(b => b.classList.remove('selected'));
+                        box.classList.add('selected');
+                        hiddenInput.value = team;
+                    };
+                    grid.appendChild(box);
                 });
             }
         } else { 
@@ -77,12 +84,12 @@ async function joinRoom(code) {
 async function finalizeJoin() {
     if (!isAuthReady) { showToast("Vänta, ansluter...", false); return; }
     
-    const select = document.getElementById('team-select');
+    const selectedTeam = document.getElementById('team-select').value;
     const nameInp = document.getElementById('name-input').value.trim();
-    if (!select.value) { showToast("Välj ett lag!", true); return; }
+    if (!selectedTeam) { showToast("Välj ett lag!", true); return; }
     if (!nameInp) { showToast("Skriv ditt namn!", true); return; }
 
-    playerTeam = select.value; 
+    playerTeam = selectedTeam; 
     playerName = nameInp;
 
     try {
@@ -123,14 +130,24 @@ async function finalizeJoin() {
 
 function listenToSelf() {
     onSnapshot(doc(db, "rooms", roomId, "players", auth.currentUser.uid), (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            // Uppdatera om Hosten har bytt lag på spelaren!
-            if (data.team !== playerTeam) {
-                playerTeam = data.team;
-                document.getElementById('player-info').textContent = `${playerName} i ${playerTeam}`;
-                showToast("Hosten flyttade dig till " + playerTeam, false);
-            }
+        if (!docSnap.exists()) {
+            // Spelaren har blivit kickad
+            showToast("Du har blivit borttagen från spelet.", true);
+            document.getElementById('buzzer-section').style.display = 'none';
+            document.getElementById('vote-section').style.display = 'none';
+            document.getElementById('join-section').style.display = 'flex';
+            return;
+        }
+        const data = docSnap.data();
+        if (data.name !== playerName) {
+            playerName = data.name;
+            document.getElementById('player-info').textContent = `${playerName} i ${playerTeam}`;
+            showToast("Hosten ändrade ditt namn till " + playerName, false);
+        }
+        if (data.team !== playerTeam) {
+            playerTeam = data.team;
+            document.getElementById('player-info').textContent = `${playerName} i ${playerTeam}`;
+            showToast("Hosten flyttade dig till " + playerTeam, false);
         }
     });
 }

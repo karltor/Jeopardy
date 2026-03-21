@@ -1,6 +1,6 @@
 // host.js
 import { showToast } from './utils.js';
-import { setupFirebaseRoom, setRoomLock, clearRoomBuzzers, syncTeams, movePlayerTeam, setRoomEvent } from './host-firebase.js';
+import { setupFirebaseRoom, setRoomLock, clearRoomBuzzers, syncTeams, movePlayerTeam, setRoomEvent, renamePlayer, kickPlayer } from './host-firebase.js';
 
 let currentBoard = null;
 let teams = [];
@@ -24,7 +24,7 @@ let nextFrozenTeam = null;
 let allianceTeams = [];
 
 let roomId = Math.floor(1000 + Math.random() * 9000).toString(); 
-let isLocked = true;
+let isLocked = false;
 let playersMap = {}; 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -58,9 +58,9 @@ function handleBuzzerUpdate(buzzes) {
         
         if (first) {
             li.style.backgroundColor = '#28a745'; li.style.color = 'white'; li.style.fontSize = '1.2em';
-            li.textContent = `🥇 ${data.name} (${data.team})`; first = false;
+            li.textContent = `🥇 ${data.team} (${data.name})`; first = false;
         } else {
-            li.style.backgroundColor = '#f4f4f9'; li.style.color = '#333'; li.textContent = `${data.name} (${data.team})`;
+            li.style.backgroundColor = '#f4f4f9'; li.style.color = '#333'; li.textContent = `${data.team} (${data.name})`;
         }
         list.appendChild(li);
     });
@@ -232,8 +232,39 @@ function renderPlayersInTeams() {
         const teamDiv = document.querySelector(`.team-players[data-team="${playerData.team}"]`);
         if (teamDiv) {
             const chip = document.createElement('div');
-            chip.className = 'player-chip'; chip.textContent = playerData.name; chip.draggable = true;
+            chip.className = 'player-chip'; chip.draggable = true;
             chip.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', uid); });
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = playerData.name;
+            nameSpan.style.flex = '1';
+            nameSpan.style.overflow = 'hidden';
+            nameSpan.style.textOverflow = 'ellipsis';
+
+            const editBtn = document.createElement('button');
+            editBtn.textContent = '✏️';
+            editBtn.className = 'player-action-btn';
+            editBtn.title = 'Byt namn';
+            editBtn.onclick = (e) => {
+                e.stopPropagation();
+                const newName = prompt('Nytt namn:', playerData.name);
+                if (newName && newName.trim() && newName.trim() !== playerData.name) {
+                    renamePlayer(roomId, uid, newName.trim().substring(0, 15));
+                }
+            };
+
+            const kickBtn = document.createElement('button');
+            kickBtn.textContent = '✕';
+            kickBtn.className = 'player-action-btn player-kick-btn';
+            kickBtn.title = 'Kicka spelare';
+            kickBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (confirm(`Kicka ${playerData.name}?`)) {
+                    kickPlayer(roomId, uid);
+                }
+            };
+
+            chip.append(nameSpan, editBtn, kickBtn);
             teamDiv.appendChild(chip);
         }
     });

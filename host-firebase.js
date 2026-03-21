@@ -9,7 +9,7 @@ export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
     const roomRef = doc(db, "rooms", roomId);
     await setDoc(roomRef, {
         hostUid: auth.currentUser.uid,
-        locked: true,
+        locked: false,
         teams: [],
         event: null 
     });
@@ -50,6 +50,16 @@ export async function syncTeams(roomId, teams) {
 // Ändra lag på en specifik elev (Drag & Drop)
 export async function movePlayerTeam(roomId, uid, newTeam) {
     await updateDoc(doc(db, "rooms", roomId, "players", uid), { team: newTeam });
+}
+
+// Byt namn på en spelare
+export async function renamePlayer(roomId, uid, newName) {
+    await updateDoc(doc(db, "rooms", roomId, "players", uid), { name: newName });
+}
+
+// Kicka en spelare
+export async function kickPlayer(roomId, uid) {
+    await deleteDoc(doc(db, "rooms", roomId, "players", uid));
 }
 
 // Berätta för databasen (och eleverna) att ett event har startat (t.ex. Solospelaren)
