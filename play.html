@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jeopardy Buzzer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #1e90ff; color: white; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .container { width: 90%; max-width: 400px; text-align: center; padding: 20px 0; display: flex; flex-direction: column; flex-grow: 1; }
+        h1 { margin-bottom: 30px; font-size: 2.5em; text-shadow: 2px 2px 0 #000; }
+        input, select { width: 100%; padding: 15px; margin-bottom: 15px; border-radius: 8px; border: none; font-size: 1.2em; box-sizing: border-box; text-align: center; }
+        button { width: 100%; padding: 15px; background-color: #ffd700; color: #000; border: none; border-radius: 8px; font-size: 1.3em; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        button:active { transform: translateY(2px); box-shadow: 0 2px 3px rgba(0,0,0,0.3); }
+        
+        /* The Big Buzzer Button */
+        #buzzer-btn { flex-grow: 1; margin: 20px 0; border-radius: 50%; width: 250px; height: 250px; align-self: center; background: radial-gradient(circle, #ff4d4d, #cc0000); color: white; font-size: 3em; border: 10px solid #990000; transition: all 0.1s; }
+        #buzzer-btn:active { transform: scale(0.95); background: radial-gradient(circle, #cc0000, #990000); }
+        #buzzer-btn:disabled { background: #999; border-color: #666; color: #ccc; cursor: not-allowed; transform: none; }
+    </style>
+</head>
+<body>
+    <div class="container" id="join-section">
+        <h1>Gå med i spel</h1>
+        <input type="number" id="room-input" placeholder="Rumskod (ex. 1234)">
+        <button id="check-room-btn">Hitta Rum</button>
+    </div>
+
+    <div class="container" id="setup-section" style="display: none;">
+        <h1>Rum: <span id="display-room"></span></h1>
+        <select id="team-select">
+            <option value="" disabled selected>-- Välj ditt lag --</option>
+            </select>
+        <input type="text" id="name-input" placeholder="Ditt namn" maxlength="15">
+        <button id="join-game-btn">Redo att spela!</button>
+    </div>
+
+    <div class="container" id="buzzer-section" style="display: none; justify-content: center;">
+        <h2 id="player-info" style="margin-top:0;"></h2>
+        <h3 id="status-text" style="color: #ffd700;">Väntar på host...</h3>
+        <button id="buzzer-btn" disabled>BUZZ</button>
+    </div>
+
+    <script type="module" src="play.js"></script>
+</body>
+</html>
