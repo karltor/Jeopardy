@@ -19,6 +19,10 @@
         .vote-btn { background-color: #fff; color: #1e90ff; margin-bottom: 10px; border: 3px solid transparent; }
         .vote-btn.selected { background-color: #28a745; color: white; border: 3px solid #fff; }
 
+        .team-box { width: calc(50% - 10px); padding: 18px 10px; background-color: #fff; color: #1e90ff; border: 3px solid transparent; border-radius: 10px; font-size: 1.2em; font-weight: bold; cursor: pointer; text-align: center; box-sizing: border-box; transition: all 0.15s; }
+        .team-box:hover { background-color: #e0e0e0; }
+        .team-box.selected { background-color: #28a745; color: white; border: 3px solid #fff; }
+
         /* Toast CSS för mobilen */
         #toast-msg { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 20px; font-size: 1.1em; transform: translateX(-50%); box-shadow: 0 4px 15px rgba(0,0,0,0.4); transition: opacity 0.3s, bottom 0.3s; opacity: 0; }
         #toast-msg.show { visibility: visible; opacity: 1; bottom: 40px; }
@@ -33,9 +37,9 @@
 
     <div class="container" id="setup-section" style="display: none;">
         <h1>Rum: <span id="display-room"></span></h1>
-        <select id="team-select">
-            <option value="" disabled selected>-- Välj ditt lag --</option>
-        </select>
+        <p style="margin-bottom: 5px; font-size: 1.1em;">Välj ditt lag:</p>
+        <div id="team-select-grid" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 15px;"></div>
+        <input type="hidden" id="team-select" value="">
         <input type="text" id="name-input" placeholder="Ditt namn" maxlength="15">
         <button id="join-game-btn">Redo att spela!</button>
     </div>
