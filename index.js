@@ -91,6 +91,8 @@ function setupEventListeners() {
         showSplashScreen();
     });
 
+    document.getElementById('toggle-image-mode').addEventListener('click', () => toggleMediaMode('image'));
+    document.getElementById('toggle-sound-mode').addEventListener('click', () => toggleMediaMode('sound'));
     document.getElementById('copy-key-btn').addEventListener('click', copyKeyToClipboard);
     document.getElementById('copy-link-share-btn').addEventListener('click', () => {
         const input = document.getElementById('share-link-output');
@@ -234,9 +236,16 @@ function editBoard(index) {
     editCurrentBoard();
 }
 
+let mediaMode = null; // null, 'image', or 'sound'
+
 function editCurrentBoard() {
+    mediaMode = null;
     document.getElementById('splash-screen').style.display = 'none';
     document.getElementById('edit-mode').style.display = 'block';
+    renderEditGrid();
+}
+
+function renderEditGrid() {
     const editGrid = document.getElementById('edit-grid');
     editGrid.innerHTML = '';
 
@@ -257,34 +266,18 @@ function editCurrentBoard() {
             const cellWrapper = document.createElement('div');
             cellWrapper.className = 'edit-cell';
 
+            const mediaKey = `${col}-${row}`;
+            const hasMedia = currentBoard.media[mediaKey];
+
             const qInput = document.createElement('textarea');
             qInput.value = currentBoard.questions[col][row];
             qInput.placeholder = `Fråga ${row + 1} (${(row+1)*100}p)`;
             qInput.oninput = (e) => currentBoard.questions[col][row] = e.target.value;
+            cellWrapper.appendChild(qInput);
 
-            // Media toolbar
-            const toolbar = document.createElement('div');
-            toolbar.className = 'media-toolbar';
-
-            const mediaKey = `${col}-${row}`;
-            const hasMedia = currentBoard.media[mediaKey];
-
-            const imgBtn = document.createElement('button');
-            imgBtn.textContent = '🖼';
-            imgBtn.title = 'Lägg till bild';
-            imgBtn.className = 'media-btn';
-            imgBtn.onclick = (e) => { e.stopPropagation(); pickMedia(col, row, 'image'); };
-
-            const sndBtn = document.createElement('button');
-            sndBtn.textContent = '🔊';
-            sndBtn.title = 'Lägg till ljud';
-            sndBtn.className = 'media-btn';
-            sndBtn.onclick = (e) => { e.stopPropagation(); pickMedia(col, row, 'sound'); };
-
-            toolbar.append(imgBtn, sndBtn);
-
+            // Show media indicator below textarea if this cell has media
             if (hasMedia) {
-                const indicator = document.createElement('span');
+                const indicator = document.createElement('div');
                 indicator.className = 'media-indicator';
                 indicator.textContent = hasMedia.type === 'image' ? `🖼 ${hasMedia.name}` : `🔊 ${hasMedia.name}`;
                 indicator.title = 'Klicka för att ta bort';
@@ -292,15 +285,49 @@ function editCurrentBoard() {
                     e.stopPropagation();
                     if (confirm(`Ta bort media "${hasMedia.name}"?`)) {
                         delete currentBoard.media[mediaKey];
-                        editCurrentBoard(); // Re-render
+                        renderEditGrid();
                     }
                 };
-                toolbar.appendChild(indicator);
+                cellWrapper.appendChild(indicator);
             }
 
-            cellWrapper.append(qInput, toolbar);
+            // In media mode, clicking the cell opens file picker
+            if (mediaMode) {
+                cellWrapper.classList.add('media-pick-mode');
+                cellWrapper.onclick = (e) => {
+                    if (e.target.tagName === 'TEXTAREA') return;
+                    pickMedia(col, row, mediaMode);
+                };
+                // Add a click overlay on the textarea too
+                const overlay = document.createElement('div');
+                overlay.className = 'media-pick-overlay';
+                overlay.textContent = mediaMode === 'image' ? '🖼' : '🔊';
+                overlay.onclick = () => pickMedia(col, row, mediaMode);
+                cellWrapper.appendChild(overlay);
+            }
+
             editGrid.appendChild(cellWrapper);
         }
+    }
+
+    updateMediaToggleButtons();
+}
+
+function toggleMediaMode(type) {
+    mediaMode = mediaMode === type ? null : type;
+    renderEditGrid();
+}
+
+function updateMediaToggleButtons() {
+    const imgToggle = document.getElementById('toggle-image-mode');
+    const sndToggle = document.getElementById('toggle-sound-mode');
+    if (imgToggle) {
+        imgToggle.classList.toggle('active', mediaMode === 'image');
+        imgToggle.textContent = mediaMode === 'image' ? '🖼 Lägg till bild (klicka på ruta)' : '🖼 Bild';
+    }
+    if (sndToggle) {
+        sndToggle.classList.toggle('active', mediaMode === 'sound');
+        sndToggle.textContent = mediaMode === 'sound' ? '🔊 Lägg till ljud (klicka på ruta)' : '🔊 Ljud';
     }
 }
 
@@ -319,7 +346,8 @@ function pickMedia(col, row, type) {
                 data: reader.result,
                 name: file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name
             };
-            editCurrentBoard(); // Re-render to show indicator
+            mediaMode = null; // Exit media mode after picking
+            renderEditGrid();
         };
         reader.readAsDataURL(file);
     };
