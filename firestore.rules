@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.hostUid;
+      match /players/{uid} {
+        allow read: if true;
+        // Elev får skapa sin profil
+        allow create: if request.auth != null && request.auth.uid == uid;
+
+        // ANTI-FUSK: Elev får uppdatera profilen, MEN de får BARA ändra fältet 'vote'.
+        // Försöker de ändra namn eller team, blockeras det direkt!
+        allow update: if request.auth != null && request.auth.uid == uid
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vote']);
+
+        // Host får ändra allt (t.ex. byta lag via drag & drop)
+        allow write: if request.auth != null && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;
+      }
+      match /buzzes/{buzzId} {
+        allow read: if true;
+        allow create: if request.auth != null && request.auth.uid == buzzId && get(/databases/$(database)/documents/rooms/$(roomId)).data.locked == false;
+        allow delete: if request.auth != null && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;
+      }
+    }
+    match /sharedBoards/{boardId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+  }
+}
