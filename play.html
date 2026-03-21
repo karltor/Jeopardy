@@ -12,10 +12,10 @@
         button { width: 100%; padding: 15px; background-color: #ffd700; color: #000; border: none; border-radius: 8px; font-size: 1.3em; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         button:active { transform: translateY(2px); box-shadow: 0 2px 3px rgba(0,0,0,0.3); }
         
-        /* The Big Buzzer Button */
-        #buzzer-btn { flex-grow: 1; margin: 20px 0; border-radius: 50%; width: 250px; height: 250px; align-self: center; background: radial-gradient(circle, #ff4d4d, #cc0000); color: white; font-size: 3em; border: 10px solid #990000; transition: all 0.1s; }
+        /* FIXAD RUND KNAPP */
+        #buzzer-btn { flex-grow: 0; flex-shrink: 0; margin: auto; border-radius: 50%; width: 250px; height: 250px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, #ff4d4d, #cc0000); color: white; font-size: 3em; border: 10px solid #990000; transition: all 0.1s; box-shadow: 0px 10px 20px rgba(0,0,0,0.5); }
         #buzzer-btn:active { transform: scale(0.95); background: radial-gradient(circle, #cc0000, #990000); }
-        #buzzer-btn:disabled { background: #999; border-color: #666; color: #ccc; cursor: not-allowed; transform: none; }
+        #buzzer-btn:disabled { background: #999; border-color: #666; color: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
     </style>
 </head>
 <body>
@@ -29,7 +29,7 @@
         <h1>Rum: <span id="display-room"></span></h1>
         <select id="team-select">
             <option value="" disabled selected>-- Välj ditt lag --</option>
-            </select>
+        </select>
         <input type="text" id="name-input" placeholder="Ditt namn" maxlength="15">
         <button id="join-game-btn">Redo att spela!</button>
     </div>
