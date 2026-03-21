@@ -1,6 +1,7 @@
 // host.js
 import { showToast } from './utils.js';
 import { setupFirebaseRoom, setRoomLock, clearRoomBuzzers, syncTeams, movePlayerTeam, setRoomEvent, renamePlayer, kickPlayer } from './host-firebase.js';
+import { getBoard } from './board-db.js';
 
 let currentBoard = null;
 let teams = [];
@@ -27,10 +28,11 @@ let roomId = Math.floor(1000 + Math.random() * 9000).toString();
 let isLocked = false;
 let playersMap = {}; 
 
-document.addEventListener('DOMContentLoaded', () => {
-    const savedGame = localStorage.getItem('jeopardyCurrentGame');
-    if (!savedGame) { window.location.href = 'index.html'; return; }
-    currentBoard = JSON.parse(savedGame);
+document.addEventListener('DOMContentLoaded', async () => {
+    const boardName = localStorage.getItem('jeopardyCurrentGame');
+    if (!boardName) { window.location.href = 'index.html'; return; }
+    currentBoard = await getBoard(boardName);
+    if (!currentBoard) { window.location.href = 'index.html'; return; }
     
     // Initiera Firebase via vår nya modul
     setupFirebaseRoom(roomId, handleBuzzerUpdate, handlePlayersUpdate)
@@ -367,7 +369,34 @@ function openDDSetupModal(col, row) {
 }
 
 function showQuestionPopup(col, row) {
-    document.getElementById('question-popup').style.display = 'flex'; document.getElementById('question-text').textContent = currentBoard.questions[col][row] || '(Ingen fråga inlagd)';
+    document.getElementById('question-popup').style.display = 'flex';
+    const questionText = document.getElementById('question-text');
+    const mediaContainer = document.getElementById('question-media');
+    questionText.textContent = currentBoard.questions[col][row] || '(Ingen fråga inlagd)';
+
+    // Clear previous media
+    mediaContainer.innerHTML = '';
+    mediaContainer.style.display = 'none';
+
+    const mediaKey = `${col}-${row}`;
+    const media = currentBoard.media && currentBoard.media[mediaKey];
+    if (media) {
+        mediaContainer.style.display = 'block';
+        if (media.type === 'image') {
+            const img = document.createElement('img');
+            img.src = media.data;
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '400px';
+            img.style.borderRadius = '10px';
+            mediaContainer.appendChild(img);
+        } else if (media.type === 'sound') {
+            const audio = document.createElement('audio');
+            audio.src = media.data;
+            audio.controls = true;
+            audio.style.width = '100%';
+            mediaContainer.appendChild(audio);
+        }
+    }
     const banner = document.getElementById('event-banner'); const valDisplay = document.getElementById('question-value-display'); banner.style.display = 'none';
     if (currentQuestionPreEvent === 'dd') { banner.style.display = 'inline-block'; banner.style.backgroundColor = '#ff8c00'; banner.textContent = `DAILY DOUBLE (Spelas av: ${allianceTeams[0]})`; }
     else if (currentQuestionPreEvent === 'alla') { banner.style.display = 'inline-block'; banner.style.backgroundColor = '#20b2aa'; banner.textContent = `ALLA SVARAR! (Inget buzzin)`; }
@@ -418,8 +447,12 @@ function handlePointAdjustment(team, points, isCorrect) {
     updateTeamsDisplay();
 }
 
-function closeQuestionPopup() { 
-    document.getElementById('question-popup').style.display = 'none'; 
+function closeQuestionPopup() {
+    document.getElementById('question-popup').style.display = 'none';
+    // Stop any playing audio
+    const audio = document.querySelector('#question-media audio');
+    if (audio) { audio.pause(); audio.currentTime = 0; }
+    document.getElementById('question-media').innerHTML = '';
     setRoomEvent(roomId, null); // Nollställ eventet i databasen
     if (Object.keys(viewedQuestions).length === totalQuestions) setTimeout(showEndScreen, 1000); 
 }
