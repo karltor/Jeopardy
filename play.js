@@ -1,5 +1,5 @@
 import { auth, db, signInAnonymously } from './firebase-config.js';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 let roomId = null;
@@ -10,6 +10,9 @@ let isLocked = true;
 let teammates = [];
 let myVote = null;
 let isAuthReady = false;
+let hasBuzzed = false;
+let penaltyClicks = 0;
+let penaltyActive = false;
 
 // Funktion för moderna notiser (Ersätter alert)
 function showToast(message, isError = false) {
@@ -121,6 +124,7 @@ async function finalizeJoin() {
         listenToSelf();
         listenToRoomStatus();
         listenToTeammates();
+        listenToBuzzes();
         
     } catch (e) { 
         showToast("Kunde inte ansluta. Försök igen.", true); 
@@ -155,11 +159,60 @@ function listenToSelf() {
 function listenToRoomStatus() {
     onSnapshot(doc(db, "rooms", roomId), (docSnap) => {
         if (docSnap.exists()) {
+            const prevLocked = isLocked;
             isLocked = docSnap.data().locked;
             currentEvent = docSnap.data().event;
+
+            // Buzzer just unlocked - apply penalty or enable immediately
+            if (prevLocked && !isLocked) {
+                hasBuzzed = false;
+                if (penaltyClicks > 0) {
+                    applyPenaltyDelay();
+                } else {
+                    updateUI();
+                }
+            } else {
+                updateUI();
+            }
+        }
+    });
+}
+
+function listenToBuzzes() {
+    const buzzesRef = collection(db, "rooms", roomId, "buzzes");
+    onSnapshot(query(buzzesRef, orderBy("timestamp", "asc")), (snapshot) => {
+        if (snapshot.empty && !isLocked) {
+            // Buzzes cleared while unlocked - allow re-buzzing
+            hasBuzzed = false;
             updateUI();
         }
     });
+}
+
+function applyPenaltyDelay() {
+    // Calculate total penalty: 1/2 + 1/3 + 1/4 + ... + 1/(penaltyClicks+1) seconds
+    let totalDelay = 0;
+    for (let i = 0; i < penaltyClicks; i++) {
+        totalDelay += 1 / (i + 2);
+    }
+    totalDelay = Math.round(totalDelay * 100) / 100;
+    penaltyClicks = 0; // Reset for next round
+
+    penaltyActive = true;
+    const buzzerBtn = document.getElementById('buzzer-btn');
+    const statusText = document.getElementById('status-text');
+    buzzerBtn.disabled = true;
+    buzzerBtn.classList.remove('locked-style');
+    buzzerBtn.classList.add('penalty-style');
+    buzzerBtn.textContent = "VÄNTA";
+    statusText.textContent = `Straff: ${totalDelay.toFixed(1)}s`;
+    statusText.style.color = "#dc3545";
+    showToast(`Klicka inte innan buzzern låses upp! Straff: ${totalDelay.toFixed(1)}s`, true);
+
+    setTimeout(() => {
+        penaltyActive = false;
+        updateUI();
+    }, totalDelay * 1000);
 }
 
 function listenToTeammates() {
@@ -203,18 +256,28 @@ function updateUI() {
             }
         }
     } else {
-        voteSection.style.display = 'none'; 
+        voteSection.style.display = 'none';
         buzzerSection.style.display = 'flex';
-        
+
+        if (penaltyActive) return; // Don't override penalty UI
+
+        buzzerBtn.classList.remove('locked-style', 'penalty-style');
+
         if (isLocked) {
-            buzzerBtn.disabled = true; 
+            buzzerBtn.disabled = false; // Keep enabled to detect premature clicks
+            buzzerBtn.classList.add('locked-style');
             buzzerBtn.textContent = "LÅST";
-            statusText.textContent = "Väntar på host..."; 
+            statusText.textContent = "Väntar på host...";
             statusText.style.color = "#ffd700";
-        } else {
-            buzzerBtn.disabled = false; 
+        } else if (hasBuzzed) {
+            buzzerBtn.disabled = true;
             buzzerBtn.textContent = "BUZZ";
-            statusText.textContent = "KLAR!"; 
+            statusText.textContent = "BUZZED!";
+            statusText.style.color = "white";
+        } else {
+            buzzerBtn.disabled = false;
+            buzzerBtn.textContent = "BUZZ";
+            statusText.textContent = "KLAR!";
             statusText.style.color = "#28a745";
         }
     }
@@ -260,18 +323,29 @@ function calculateVoteWinner() {
 }
 
 async function buzzIn() {
-    const buzzerBtn = document.getElementById('buzzer-btn'); 
+    // Track premature clicks while locked
+    if (isLocked) {
+        penaltyClicks++;
+        // Calculate current total penalty for display
+        let total = 0;
+        for (let i = 0; i < penaltyClicks; i++) total += 1 / (i + 2);
+        showToast(`Buzzern är låst! Straff: ${total.toFixed(1)}s`, true);
+        return;
+    }
+
+    const buzzerBtn = document.getElementById('buzzer-btn');
     buzzerBtn.disabled = true;
-    
+    hasBuzzed = true;
+
     try {
         await setDoc(doc(db, "rooms", roomId, "buzzes", auth.currentUser.uid), {
-            name: playerName, 
-            team: playerTeam, 
+            name: playerName,
+            team: playerTeam,
             timestamp: serverTimestamp()
         });
         document.getElementById('status-text').textContent = "BUZZED!";
         document.getElementById('status-text').style.color = "white";
-    } catch (error) { 
-        console.error("Fel vid buzz: ", error); 
+    } catch (error) {
+        console.error("Fel vid buzz: ", error);
     }
 }
