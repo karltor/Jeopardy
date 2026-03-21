@@ -1,4 +1,7 @@
 // host.js
+import { auth, db, signInAnonymously } from './firebase-config.js';
+import { doc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, getDocs, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
 let currentBoard = null;
 let teams = [];
 let teamScores = {};
@@ -23,18 +26,99 @@ let frozenTeam = null;
 let nextFrozenTeam = null;
 let allianceTeams = [];
 
+// Buzzer State
+let roomId = Math.floor(1000 + Math.random() * 9000).toString(); // Generera 4-siffrig kod
+let isLocked = true;
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Läs in det valda brädet från localStorage
     const savedGame = localStorage.getItem('jeopardyCurrentGame');
     if (!savedGame) {
-        window.location.href = 'index.html'; // Tvinga tillbaka till start om inget bräde hittades
+        window.location.href = 'index.html'; 
         return;
     }
     currentBoard = JSON.parse(savedGame);
+    
+    // Logga in host anonymt på Firebase och skapa rum
+    signInAnonymously(auth).then(() => {
+        setupBuzzerRoom();
+    }).catch(error => console.error("Firebase Auth Error:", error));
+
     initiateGameLogic();
     setupEventListeners();
 });
 
+// --- FIREBASE BUZZER LOGIC ---
+async function setupBuzzerRoom() {
+    const roomRef = doc(db, "rooms", roomId);
+    await setDoc(roomRef, {
+        hostUid: auth.currentUser.uid,
+        locked: true,
+        teams: [] // Fylls i när lagen är klara
+    });
+
+    // Uppdatera UI
+    document.getElementById('room-code-display').textContent = roomId;
+    const link = document.getElementById('room-link');
+    const playUrl = window.location.href.replace('host.html', 'play.html') + '?' + roomId;
+    link.href = playUrl;
+    link.textContent = playUrl;
+
+    // Lyssna på buzzers
+    const buzzesRef = collection(db, "rooms", roomId, "buzzes");
+    const q = query(buzzesRef, orderBy("timestamp", "asc"));
+    
+    onSnapshot(q, (snapshot) => {
+        const list = document.getElementById('buzzer-list');
+        list.innerHTML = '';
+        let first = true;
+
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const li = document.createElement('li');
+            li.style.padding = '10px';
+            li.style.marginBottom = '5px';
+            li.style.borderRadius = '5px';
+            li.style.fontWeight = 'bold';
+            
+            if (first) {
+                li.style.backgroundColor = '#28a745'; // Grön för först!
+                li.style.color = 'white';
+                li.style.fontSize = '1.2em';
+                li.textContent = `🥇 ${data.name} (${data.team})`;
+                first = false;
+            } else {
+                li.style.backgroundColor = '#f4f4f9';
+                li.style.color = '#333';
+                li.textContent = `${data.name} (${data.team})`;
+            }
+            list.appendChild(li);
+        });
+    });
+
+    // Knappar för Buzzer-kontroll
+    document.getElementById('toggle-lock-btn').addEventListener('click', toggleLock);
+    document.getElementById('clear-buzzers-btn').addEventListener('click', clearBuzzers);
+}
+
+async function toggleLock() {
+    isLocked = !isLocked;
+    const btn = document.getElementById('toggle-lock-btn');
+    btn.textContent = isLocked ? "🔓 Lås upp Buzzers" : "🔒 Lås Buzzers";
+    btn.style.backgroundColor = isLocked ? "#ffc107" : "#28a745";
+    btn.style.color = isLocked ? "#000" : "#fff";
+    
+    await updateDoc(doc(db, "rooms", roomId), { locked: isLocked });
+}
+
+async function clearBuzzers() {
+    const buzzesRef = collection(db, "rooms", roomId, "buzzes");
+    const snapshot = await getDocs(buzzesRef);
+    snapshot.forEach((docSnap) => {
+        deleteDoc(doc(db, "rooms", roomId, "buzzes", docSnap.id));
+    });
+}
+
+// --- GAME LOGIC ---
 function setupEventListeners() {
     document.getElementById('close-question-btn').addEventListener('click', closeQuestionPopup);
     document.getElementById('generate-team-inputs-btn').addEventListener('click', generateTeamInputs);
@@ -52,6 +136,14 @@ function setupEventListeners() {
     });
 
     document.addEventListener('keydown', (e) => {
+        // Mellanslag för att rensa buzzers (om man inte skriver i en input)
+        if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
+            e.preventDefault();
+            clearBuzzers();
+            // Om man vill låsa upp automatiskt vid clear kan man lägga till:
+            // if(isLocked) toggleLock();
+        }
+
         if (e.key === 'Escape') {
             if (document.getElementById('freeze-modal').style.display === 'flex') return;
             if (document.getElementById('generic-event-splash').style.display === 'flex') return;
@@ -100,13 +192,19 @@ function generateTeamInputs() {
     document.getElementById('team-names-container').style.display = 'block';
 }
 
-function finalizeTeamSetupAndStart() {
+async function finalizeTeamSetupAndStart() {
     teams = []; teamScores = {};
     document.querySelectorAll('.setup-team-name').forEach((inp, idx) => {
         let tName = inp.value.trim() || `Lag ${idx+1}`;
         while(teams.includes(tName)) tName += "*"; 
         teams.push(tName); teamScores[tName] = 0;
     });
+    
+    // Skicka lagen till Firebase så eleverna kan välja!
+    if (auth.currentUser) {
+        await updateDoc(doc(db, "rooms", roomId), { teams: teams });
+    }
+
     document.getElementById('team-setup-modal').style.display = 'none'; 
     setupGameBoard();
 }
@@ -142,6 +240,8 @@ function updateTeamsDisplay() {
             if(!newName || teams.includes(newName)) { e.target.value = team; return; }
             teams[teams.indexOf(team)] = newName; teamScores[newName] = teamScores[team]; delete teamScores[team];
             updateTeamsDisplay();
+            // Uppdatera Firebase med nya lagnamnen
+            updateDoc(doc(db, "rooms", roomId), { teams: teams }); 
         };
         const scoreP = document.createElement('p'); scoreP.textContent = `${teamScores[team]} p`;
         teamDiv.append(nameInput, scoreP); teamList.appendChild(teamDiv);
@@ -152,7 +252,6 @@ function getLowestTeams(count = 1) {
     let sorted = Object.entries(teamScores).sort((a, b) => Math.random() - 0.5).sort((a,b) => a[1]-b[1]);
     return sorted.slice(0, count).map(t => t[0]);
 }
-
 function getLeader() {
     let sorted = Object.entries(teamScores).sort((a,b) => b[1]-a[1]);
     return sorted[0][0];
@@ -343,7 +442,6 @@ function handlePointAdjustment(team, points, isCorrect) {
     if (isCorrect) {
         let leader = getLeader();
         
-        // Frysstrålen
         if (currentQuestionPreEvent === 'frysstralen') {
             const modal = document.getElementById('freeze-modal');
             const btns = document.getElementById('freeze-team-buttons'); btns.innerHTML = '';
@@ -357,13 +455,11 @@ function handlePointAdjustment(team, points, isCorrect) {
             modal.style.display = 'flex';
         }
 
-        // Alliansen
         if (currentQuestionPreEvent === 'alliansen' && allianceTeams.includes(team)) {
             allianceTeams.forEach(t => { if(t !== team) { teamScores[t] += points; } });
             setTimeout(() => alert(`Alliansen! Även ${allianceTeams.find(t=>t!==team)} får poäng!`), 100);
         }
 
-        // Robin Hood
         if (currentQuestionPreEvent === 'robin_hood') {
             if (team !== leader) {
                 teamScores[leader] -= points;
@@ -375,7 +471,6 @@ function handlePointAdjustment(team, points, isCorrect) {
 
         teamScores[team] += points;
 
-        // Dolda events
         if (currentQuestionPostEvent === 'jackpot') {
             currentQuestionPostEvent = null; 
             let newLeader = getLeader();
