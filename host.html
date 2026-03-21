@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <title>Jeopardy - Spel</title>
+    <title>Jeopardy - Spel (Host)</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -23,61 +23,82 @@
         </div>
     </div>
 
-    <div id="play-mode" style="display: none;">
-        <h1 id="game-name"></h1>
-        <div id="game-board"></div>
-        <div id="teams">
-            <h2>Lagens Poäng</h2>
-            <div id="team-list"></div>
-        </div>
-    </div>
-
-    <div id="freeze-modal" class="custom-modal" style="display: none;">
-        <div class="modal-content">
-            <h2>Frysstrålen!</h2>
-            <p>Välj vilket lag ni vill frysa under nästa fråga:</p>
-            <div id="freeze-team-buttons"></div>
-        </div>
-    </div>
-
-    <div id="dd-setup-modal" class="custom-modal" style="display: none;">
-        <div class="modal-content">
-            <h2>Daily Double</h2>
-            <select id="dd-team-select" style="width:100%; padding:10px; font-size:1.1em; margin-bottom:15px;"></select>
-            <div id="dd-bet-container">
-                <button class="dd-bet-btn" id="dd-bet-x2"></button>
-                <button class="dd-bet-btn" id="dd-bet-1000">1000 poäng</button>
-                <button class="dd-bet-btn" id="dd-bet-all"></button>
+    <div id="host-container" style="display: flex; height: 100vh; overflow: hidden;">
+        
+        <div id="game-section" style="flex: 1; position: relative; overflow-y: auto;">
+            
+            <div id="play-mode" style="display: none;">
+                <h1 id="game-name"></h1>
+                <div id="game-board"></div>
+                <div id="teams">
+                    <h2>Lagens Poäng</h2>
+                    <div id="team-list"></div>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div id="generic-event-splash" class="event-splash" style="display: none; background: radial-gradient(circle, #ff0000, #ff8c00);">
-        <h1 id="generic-event-title">EVENT</h1>
-        <h2 id="generic-event-sub">Underrubrik</h2>
-        <button id="generic-event-continue-btn">Visa Frågan</button>
-    </div>
+            <div id="freeze-modal" class="custom-modal" style="display: none;">
+                <div class="modal-content">
+                    <h2>Frysstrålen!</h2>
+                    <p>Välj vilket lag ni vill frysa under nästa fråga:</p>
+                    <div id="freeze-team-buttons"></div>
+                </div>
+            </div>
 
-    <div id="daily-double-splash" class="event-splash" style="display: none; background: radial-gradient(circle, #ff0000, #ff8c00, #ffd700); animation: explode 0.5s infinite alternate;">
-        <h1>DAILY<br>DOUBLE!</h1>
-    </div>
+            <div id="dd-setup-modal" class="custom-modal" style="display: none;">
+                <div class="modal-content">
+                    <h2>Daily Double</h2>
+                    <select id="dd-team-select" style="width:100%; padding:10px; font-size:1.1em; margin-bottom:15px;"></select>
+                    <div id="dd-bet-container">
+                        <button class="dd-bet-btn" id="dd-bet-x2"></button>
+                        <button class="dd-bet-btn" id="dd-bet-1000">1000 poäng</button>
+                        <button class="dd-bet-btn" id="dd-bet-all"></button>
+                    </div>
+                </div>
+            </div>
 
-    <div id="question-popup" style="display: none;">
-        <div id="question-content">
-            <div id="event-banner"></div>
-            <p id="question-text"></p>
-            <p id="question-value-display" style="color: #666; font-weight: bold; margin-bottom: 20px;"></p>
-            <div id="adjust-points"></div>
-            <button id="close-question-btn">Stäng Fråga</button>
-        </div>
-    </div>
+            <div id="generic-event-splash" class="event-splash" style="display: none; background: radial-gradient(circle, #ff0000, #ff8c00);">
+                <h1 id="generic-event-title">EVENT</h1>
+                <h2 id="generic-event-sub">Underrubrik</h2>
+                <button id="generic-event-continue-btn">Visa Frågan</button>
+            </div>
 
-    <div id="end-screen" style="display: none;">
-        <h1>Spelet är slut!</h1>
-        <div id="results"></div>
-        <button id="back-to-main" onclick="window.location.href='index.html'">Tillbaka till Start</button>
-    </div>
+            <div id="daily-double-splash" class="event-splash" style="display: none; background: radial-gradient(circle, #ff0000, #ff8c00, #ffd700); animation: explode 0.5s infinite alternate;">
+                <h1>DAILY<br>DOUBLE!</h1>
+            </div>
 
-    <script src="host.js"></script>
+            <div id="question-popup" style="display: none;">
+                <div id="question-content">
+                    <div id="event-banner"></div>
+                    <p id="question-text"></p>
+                    <p id="question-value-display" style="color: #666; font-weight: bold; margin-bottom: 20px;"></p>
+                    <div id="adjust-points"></div>
+                    <button id="close-question-btn">Stäng Fråga</button>
+                </div>
+            </div>
+
+            <div id="end-screen" style="display: none;">
+                <h1>Spelet är slut!</h1>
+                <div id="results"></div>
+                <button id="back-to-main" onclick="window.location.href='index.html'">Tillbaka till Start</button>
+            </div>
+            
+        </div> <div id="buzzer-section" style="width: 300px; background-color: #fff; border-left: 2px solid #ccc; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; box-shadow: -2px 0 5px rgba(0,0,0,0.1); z-index: 10;">
+            <h2 style="color: #1e90ff; text-align: center; margin-top: 0;">Buzzer System</h2>
+            
+            <div style="text-align: center; margin-bottom: 20px;">
+                <p style="margin: 0; font-size: 1.2em; color: #666;">Rumskod:</p>
+                <h1 id="room-code-display" style="margin: 5px 0; font-size: 2.5em; letter-spacing: 2px;">Laddar...</h1>
+                <a id="room-link" href="#" target="_blank" style="font-size: 0.9em; color: #1e90ff; text-decoration: none;">Öppna länk till spelare</a>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                <button id="toggle-lock-btn" style="padding: 15px; background-color: #ffc107; border: none; font-weight: bold; border-radius: 5px; cursor: pointer; font-size: 1.1em;">🔓 Lås Buzzers</button>
+                <button id="clear-buzzers-btn" style="padding: 15px; background-color: #dc3545; color: white; border: none; font-weight: bold; border-radius: 5px; cursor: pointer; font-size: 1.1em;">Rensa Buzzers</button>
+            </div>
+
+            <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 5px;">Inkommande Buzz:</h3>
+            <ul id="buzzer-list" style="list-style: none; padding: 0; margin: 0; flex-grow: 1; overflow-y: auto;">
+                </ul>
+        </div> </div> <script type="module" src="host.js"></script>
 </body>
 </html>
