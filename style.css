@@ -41,17 +41,25 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: 
 .question-cell:hover { background-color: #3b76b3; }
 .question-cell.clicked { background-color: #999; cursor: default; text-shadow: none; }
 
-/* Teams Section */
-#teams { position: fixed; bottom: 0; left: 0; width: 100%; background-color: #00008b; padding: 10px 5px; box-sizing: border-box; max-height: 120px; overflow-y: hidden; border-top: 3px solid #ffd700; }
+/* Teams Section (Anpassad för Buzzer-sidobar) */
+#teams { position: fixed; bottom: 0; left: 0; width: calc(100% - 300px); background-color: #00008b; padding: 10px 5px; box-sizing: border-box; overflow-y: hidden; border-top: 3px solid #ffd700; z-index: 10; }
 #teams h2 { color: #fff; text-align: center; margin: 0 0 5px 0; font-size: 1.1em; }
-#team-list { display: flex; justify-content: space-between; flex-wrap: nowrap; gap: 5px; }
+#team-list { display: flex; justify-content: space-between; flex-wrap: nowrap; gap: 5px; align-items: flex-start; }
 .team { display: flex; flex-direction: column; align-items: center; color: #fff; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 8px; flex: 1; min-width: 0; }
 .team input { text-align: center; font-size: 1em; font-weight: bold; margin-bottom: 3px; background-color: transparent; border: none; border-bottom: 1px solid #fff; color: #fff; width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .team input:focus { outline: none; border-bottom: 2px solid #ffd700; }
 .team p { font-size: 1.2em; margin: 0; font-weight: bold; color: #ffd700; }
 
-/* Modals */
-.custom-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
+/* Drag and Drop Spelare (NY) */
+.team-players { width: 100%; min-height: 40px; display: flex; flex-direction: column; align-items: center; gap: 4px; overflow-y: auto; max-height: 80px; margin-top: 5px; padding-bottom: 5px; }
+.player-chip { background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 12px; font-size: 0.85em; cursor: grab; text-align: center; width: 90%; box-sizing: border-box; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+.player-chip:active { cursor: grabbing; }
+.drag-over { background: rgba(255, 215, 0, 0.2) !important; border-radius: 8px; border: 1px dashed #ffd700; }
+
+/* Modals (Anpassad för Buzzer-sidobar) */
+.custom-modal { position: fixed; top: 0; left: 0; width: calc(100% - 300px); height: 100%; background-color: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
+#team-setup-modal { width: 100% !important; z-index: 300; } /* Ska täcka hela skärmen */
+
 .modal-content { background-color: #fff; padding: 30px; width: 90%; max-width: 500px; border-radius: 10px; text-align: center; position: relative; color: #333; }
 .modal-content h2 { margin-top: 0; color: #1e90ff; }
 .modal-content input[type="text"], .modal-content input[type="number"], .modal-content textarea { width: 100%; padding: 10px; margin: 10px 0 20px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; box-sizing: border-box; }
@@ -59,8 +67,8 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: 
 .modal-content button.cancel-btn { background-color: #ccc; color: #333; }
 .close-x { position: absolute; top: 10px; right: 15px; font-size: 1.5em; cursor: pointer; color: #999; }
 
-/* Question Popup */
-#question-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 50; }
+/* Question Popup (Anpassad för Buzzer-sidobar) */
+#question-popup { position: fixed; top: 0; left: 0; width: calc(100% - 300px); height: 100%; background-color: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 50; }
 #question-content { background-color: #fff; padding: 40px; width: 80%; max-width: 900px; border-radius: 15px; text-align: center; border: 5px solid #1e90ff; position: relative; }
 #event-banner { display: none; padding: 10px; font-size: 1.5em; font-weight: bold; color: #fff; border-radius: 8px; margin-bottom: 20px; }
 #question-text { font-size: 3em; font-weight: bold; margin-bottom: 40px; color: #00008b; word-wrap: break-word; }
@@ -78,8 +86,8 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: 
 
 #close-question-btn { margin-top: 30px; padding: 15px 30px; font-size: 1.2em; background-color: #333; color: white; border: none; border-radius: 5px; cursor: pointer; }
 
-/* Event Animations */
-.event-splash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-size: 300% 300%; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 200; color: white; text-transform: uppercase; text-align: center; }
+/* Event Animations (Anpassad för Buzzer-sidobar) */
+.event-splash { position: fixed; top: 0; left: 0; width: calc(100% - 300px); height: 100%; background-size: 300% 300%; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 200; color: white; text-transform: uppercase; text-align: center; }
 @keyframes explode { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
 .event-splash h1 { font-size: 6em; font-weight: 900; text-shadow: 6px 6px 0 #000; animation: zoomInOut 1s infinite alternate; margin: 0; }
 .event-splash h2 { font-size: 3em; text-shadow: 3px 3px 0 #000; margin-top: 20px; }
