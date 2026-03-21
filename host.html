@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>Jeopardy - Spel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="team-setup-modal" class="custom-modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-x" onclick="window.location.href='index.html'">&times;</span>
+            <h2>Inställningar för lag</h2>
+            <p>Hur många lag ska spela? (2-5)</p>
+            <input type="number" id="num-teams-input" min="2" max="5" value="3">
+            <button id="generate-team-inputs-btn">Nästa</button>
+            <div id="team-names-container" style="display:none; margin-top:20px;">
+                <p>Namnge lagen:</p>
+                <div id="team-name-inputs"></div>
+                <button id="start-game-btn">Starta Spelet!</button>
+                <button class="cancel-btn" onclick="window.location.href='index.html'">Avbryt</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="play-mode" style="display: none;">
+        <h1 id="game-name"></h1>
+        <div id="game-board"></div>
+        <div id="teams">
+            <h2>Lagens Poäng</h2>
+            <div id="team-list"></div>
+        </div>
+    </div>
+
+    <div id="freeze-modal" class="custom-modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Frysstrålen!</h2>
+            <p>Välj vilket lag ni vill frysa under nästa fråga:</p>
+            <div id="freeze-team-buttons"></div>
+        </div>
+    </div>
+
+    <div id="dd-setup-modal" class="custom-modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Daily Double</h2>
+            <select id="dd-team-select" style="width:100%; padding:10px; font-size:1.1em; margin-bottom:15px;"></select>
+            <div id="dd-bet-container">
+                <button class="dd-bet-btn" id="dd-bet-x2"></button>
+                <button class="dd-bet-btn" id="dd-bet-1000">1000 poäng</button>
+                <button class="dd-bet-btn" id="dd-bet-all"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="generic-event-splash" class="event-splash" style="display: none; background: radial-gradient(circle, #ff0000, #ff8c00);">
+        <h1 id="generic-event-title">EVENT</h1>
+        <h2 id="generic-event-sub">Underrubrik</h2>
+        <button id="generic-event-continue-btn">Visa Frågan</button>
+    </div>
+
+    <div id="daily-double-splash" class="event-splash" style="display: none; background: radial-gradient(circle, #ff0000, #ff8c00, #ffd700); animation: explode 0.5s infinite alternate;">
+        <h1>DAILY<br>DOUBLE!</h1>
+    </div>
+
+    <div id="question-popup" style="display: none;">
+        <div id="question-content">
+            <div id="event-banner"></div>
+            <p id="question-text"></p>
+            <p id="question-value-display" style="color: #666; font-weight: bold; margin-bottom: 20px;"></p>
+            <div id="adjust-points"></div>
+            <button id="close-question-btn">Stäng Fråga</button>
+        </div>
+    </div>
+
+    <div id="end-screen" style="display: none;">
+        <h1>Spelet är slut!</h1>
+        <div id="results"></div>
+        <button id="back-to-main" onclick="window.location.href='index.html'">Tillbaka till Start</button>
+    </div>
+
+    <script src="host.js"></script>
+</body>
+</html>
