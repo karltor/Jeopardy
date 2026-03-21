@@ -121,11 +121,11 @@ async function shareViaLink(index) {
         // Generera ett unikt ID för delningen
         const shareId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 
-        // Spara en oföränderlig kopia till Firestore
+        // Spara en oföränderlig kopia till Firestore (questions som JSON-sträng pga nested arrays)
         await setDoc(doc(db, "sharedBoards", shareId), {
             name: board.name,
             categories: board.categories,
-            questions: board.questions,
+            questionsJson: JSON.stringify(board.questions),
             sharedAt: new Date().toISOString()
         });
 
@@ -150,7 +150,7 @@ async function checkForSharedBoard() {
             const boardData = {
                 name: sharedBoard.name,
                 categories: sharedBoard.categories,
-                questions: sharedBoard.questions
+                questions: JSON.parse(sharedBoard.questionsJson)
             };
 
             const existingIndex = boards.findIndex(b => b.name === boardData.name);
