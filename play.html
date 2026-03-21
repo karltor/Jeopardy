@@ -16,9 +16,12 @@
         #buzzer-btn:active { transform: scale(0.95); background: radial-gradient(circle, #cc0000, #990000); }
         #buzzer-btn:disabled { background: #999; border-color: #666; color: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
         
-        /* Rösta-knappar */
         .vote-btn { background-color: #fff; color: #1e90ff; margin-bottom: 10px; border: 3px solid transparent; }
         .vote-btn.selected { background-color: #28a745; color: white; border: 3px solid #fff; }
+
+        /* Toast CSS för mobilen */
+        #toast-msg { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 20px; font-size: 1.1em; transform: translateX(-50%); box-shadow: 0 4px 15px rgba(0,0,0,0.4); transition: opacity 0.3s, bottom 0.3s; opacity: 0; }
+        #toast-msg.show { visibility: visible; opacity: 1; bottom: 40px; }
     </style>
 </head>
 <body>
@@ -48,6 +51,8 @@
         <h3 id="status-text" style="color: #ffd700;">Väntar på host...</h3>
         <button id="buzzer-btn" disabled>BUZZ</button>
     </div>
+
+    <div id="toast-msg"></div>
 
     <script type="module" src="play.js"></script>
 </body>
