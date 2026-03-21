@@ -15,6 +15,9 @@
         #buzzer-btn { flex-grow: 0; flex-shrink: 0; margin: auto; border-radius: 50%; width: 250px; height: 250px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, #ff4d4d, #cc0000); color: white; font-size: 3em; border: 10px solid #990000; transition: all 0.1s; box-shadow: 0px 10px 20px rgba(0,0,0,0.5); }
         #buzzer-btn:active { transform: scale(0.95); background: radial-gradient(circle, #cc0000, #990000); }
         #buzzer-btn:disabled { background: #999; border-color: #666; color: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+        #buzzer-btn.locked-style { background: #999; border-color: #666; color: #ccc; box-shadow: none; }
+        #buzzer-btn.locked-style:active { transform: scale(0.95); }
+        #buzzer-btn.penalty-style { background: radial-gradient(circle, #ffc107, #e0a800); border-color: #c69500; color: #333; box-shadow: none; }
         
         .vote-btn { background-color: #fff; color: #1e90ff; margin-bottom: 10px; border: 3px solid transparent; }
         .vote-btn.selected { background-color: #28a745; color: white; border: 3px solid #fff; }
