@@ -242,6 +242,7 @@ function updateUI() {
             voteSection.style.display = 'none'; 
             buzzerSection.style.display = 'flex';
             const winner = calculateVoteWinner();
+            buzzerBtn.classList.remove('locked-style', 'penalty-style');
             
             if (winner && winner.uid === auth.currentUser.uid) {
                 buzzerBtn.disabled = false; 
