@@ -1,7 +1,6 @@
 // host-firebase.js
 import { auth, db, signInAnonymously } from './firebase-config.js';
-import { doc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
+import { doc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, getDocs, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 // Skapar rummet och lyssnar på buzzers & spelare
 export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
     await signInAnonymously(auth);
@@ -40,8 +39,8 @@ export async function setRoomLock(roomId, isLocked) {
 export async function clearRoomBuzzers(roomId) {
     const snapshot = await getDocs(collection(db, "rooms", roomId, "buzzes"));
     snapshot.forEach((docSnap) => deleteDoc(doc(db, "rooms", roomId, "buzzes", docSnap.id)));
+    await updateDoc(doc(db, "rooms", roomId), { lastCleared: serverTimestamp() });
 }
-
 // Synka uppdaterade lag till eleverna
 export async function syncTeams(roomId, teams) {
     await updateDoc(doc(db, "rooms", roomId), { teams: teams });
