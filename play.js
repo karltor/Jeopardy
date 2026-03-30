@@ -1,5 +1,5 @@
 import { auth, db, signInAnonymously } from './firebase-config.js';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 let roomId = null;
@@ -13,6 +13,7 @@ let isAuthReady = false;
 let hasBuzzed = false;
 let penaltyClicks = 0;
 let penaltyActive = false;
+let lastClearedTime = 0;
 
 // Funktion för moderna notiser (Ersätter alert)
 function showToast(message, isError = false) {
@@ -124,7 +125,6 @@ async function finalizeJoin() {
         listenToSelf();
         listenToRoomStatus();
         listenToTeammates();
-        listenToBuzzes();
         
     } catch (e) { 
         showToast("Kunde inte ansluta. Försök igen.", true); 
@@ -159,11 +159,18 @@ function listenToSelf() {
 function listenToRoomStatus() {
     onSnapshot(doc(db, "rooms", roomId), (docSnap) => {
         if (docSnap.exists()) {
+            const data = docSnap.data();
             const prevLocked = isLocked;
-            isLocked = docSnap.data().locked;
-            currentEvent = docSnap.data().event;
+            isLocked = data.locked;
+            currentEvent = data.event;
 
-            // Buzzer just unlocked - apply penalty or enable immediately
+            // NYTT: Kolla om hosten precis klickat på "Rensa Buzzers"
+            const currentClearedTime = data.lastCleared?.toMillis() || 0;
+            if (currentClearedTime !== lastClearedTime) {
+                hasBuzzed = false;
+                lastClearedTime = currentClearedTime;
+            }
+
             if (prevLocked && !isLocked) {
                 hasBuzzed = false;
                 if (penaltyClicks > 0) {
@@ -174,17 +181,6 @@ function listenToRoomStatus() {
             } else {
                 updateUI();
             }
-        }
-    });
-}
-
-function listenToBuzzes() {
-    const buzzesRef = collection(db, "rooms", roomId, "buzzes");
-    onSnapshot(query(buzzesRef, orderBy("timestamp", "asc")), (snapshot) => {
-        if (snapshot.empty && !isLocked) {
-            // Buzzes cleared while unlocked - allow re-buzzing
-            hasBuzzed = false;
-            updateUI();
         }
     });
 }
@@ -215,13 +211,17 @@ function applyPenaltyDelay() {
     }, totalDelay * 1000);
 }
 
+
 function listenToTeammates() {
-    onSnapshot(collection(db, "rooms", roomId, "players"), (snap) => {
+    const playersRef = collection(db, "rooms", roomId, "players");
+    const q = query(playersRef, where("team", "==", playerTeam));
+    
+    onSnapshot(q, (snap) => {
         teammates = [];
         snap.forEach(docSnap => {
             const p = docSnap.data(); 
             p.uid = docSnap.id;
-            if (p.team === playerTeam) teammates.push(p);
+            teammates.push(p); 
         });
         updateUI();
     });
