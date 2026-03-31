@@ -115,7 +115,7 @@ function openShareModal(index) {
     const board = boards[index];
     if (boardHasMedia(board)) { showMediaShareBlock(); return; }
     // Strip media key for clean JSON export
-    const exportBoard = { name: board.name, categories: board.categories, questions: board.questions };
+    const exportBoard = { name: board.name, categories: board.categories, questions: board.questions, answers: board.answers }; 
     document.getElementById('share-key-output').value = JSON.stringify(exportBoard);
     document.getElementById('share-modal').style.display = 'flex';
 }
@@ -146,6 +146,7 @@ async function shareViaLink(index) {
             name: board.name,
             categories: board.categories,
             questionsJson: JSON.stringify(board.questions),
+            answersJson: board.answers ? JSON.stringify(board.answers) : null, // NY RAD
             sharedAt: new Date().toISOString()
         });
 
@@ -170,7 +171,9 @@ async function checkForSharedBoard() {
             const boardData = {
                 name: sharedBoard.name,
                 categories: sharedBoard.categories,
-                questions: JSON.parse(sharedBoard.questionsJson)
+                questions: JSON.parse(sharedBoard.questionsJson),
+                // LÄGG TILL DENNA RAD. Den kollar om answersJson finns (för bakåtkompatibilitet)
+                answers: sharedBoard.answersJson ? JSON.parse(sharedBoard.answersJson) : null 
             };
 
             const existingIndex = boards.findIndex(b => b.name === boardData.name);
@@ -226,13 +229,23 @@ function showSplashScreen() {
 }
 
 function createNewBoard() {
-    currentBoard = { name: 'Nytt Spel', categories: Array(6).fill(''), questions: Array(6).fill(null).map(() => Array(5).fill('')), media: {} };
+    currentBoard = { 
+        name: 'Nytt Spel', 
+        categories: Array(6).fill(''), 
+        questions: Array(6).fill(null).map(() => Array(5).fill('')), 
+        answers: Array(6).fill(null).map(() => Array(5).fill('')), // NY RAD
+        media: {} 
+    };
     editCurrentBoard();
 }
 
 function editBoard(index) {
     currentBoard = JSON.parse(JSON.stringify(boards[index]));
     if (!currentBoard.media) currentBoard.media = {};
+    // NY KOD: Bakåtkompatibilitet för facit
+    if (!currentBoard.answers) {
+        currentBoard.answers = Array(6).fill(null).map(() => Array(5).fill(''));
+    }
     editCurrentBoard();
 }
 
@@ -269,13 +282,28 @@ function renderEditGrid() {
             const mediaKey = `${col}-${row}`;
             const hasMedia = currentBoard.media[mediaKey];
 
+            // Textruta för Frågan
             const qInput = document.createElement('textarea');
             qInput.value = currentBoard.questions[col][row];
             qInput.placeholder = `Fråga ${row + 1} (${(row+1)*100}p)`;
             qInput.oninput = (e) => currentBoard.questions[col][row] = e.target.value;
             cellWrapper.appendChild(qInput);
 
-            // Show media indicator below textarea if this cell has media
+            // Textruta för Facit (Ny)
+            const aInput = document.createElement('textarea');
+            // Säkerhetskoll för äldre bräden som saknar answers-arrayen
+            aInput.value = currentBoard.answers && currentBoard.answers[col] ? currentBoard.answers[col][row] : '';
+            aInput.placeholder = `Facit (Frivilligt)`;
+            aInput.style.height = '30px'; 
+            aInput.style.marginTop = '5px';
+            aInput.style.backgroundColor = '#f8f9fa'; 
+            aInput.oninput = (e) => {
+                if (!currentBoard.answers) currentBoard.answers = Array(6).fill(null).map(() => Array(5).fill(''));
+                currentBoard.answers[col][row] = e.target.value;
+            };
+            cellWrapper.appendChild(aInput);
+
+            // Indikator för Media
             if (hasMedia) {
                 const indicator = document.createElement('div');
                 indicator.className = 'media-indicator';
@@ -291,7 +319,7 @@ function renderEditGrid() {
                 cellWrapper.appendChild(indicator);
             }
 
-            // In media mode, show a click overlay that opens file picker
+            // Läge för att välja media (overlay)
             if (mediaMode) {
                 cellWrapper.classList.add('media-pick-mode');
                 const overlay = document.createElement('div');
