@@ -372,9 +372,12 @@ function showQuestionPopup(col, row) {
     document.getElementById('question-popup').style.display = 'flex';
     const questionText = document.getElementById('question-text');
     const mediaContainer = document.getElementById('question-media');
-    questionText.textContent = currentBoard.questions[col][row] || '(Ingen fråga inlagd)';
+    
+    // Hämta och sätt frågetexten
+    const originalQuestion = currentBoard.questions[col][row] || '(Ingen fråga inlagd)';
+    questionText.textContent = originalQuestion;
 
-    // Clear previous media
+    // Rensa gammal media
     mediaContainer.innerHTML = '';
     mediaContainer.style.display = 'none';
 
@@ -397,14 +400,22 @@ function showQuestionPopup(col, row) {
             mediaContainer.appendChild(audio);
         }
     }
-    const banner = document.getElementById('event-banner'); const valDisplay = document.getElementById('question-value-display'); banner.style.display = 'none';
+    
+    // Hantera banners
+    const banner = document.getElementById('event-banner'); 
+    const valDisplay = document.getElementById('question-value-display'); 
+    banner.style.display = 'none';
+    
     if (currentQuestionPreEvent === 'dd') { banner.style.display = 'inline-block'; banner.style.backgroundColor = '#ff8c00'; banner.textContent = `DAILY DOUBLE (Spelas av: ${allianceTeams[0]})`; }
     else if (currentQuestionPreEvent === 'alla') { banner.style.display = 'inline-block'; banner.style.backgroundColor = '#20b2aa'; banner.textContent = `ALLA SVARAR! (Inget buzzin)`; }
     else if (currentQuestionPreEvent === 'raddning') { banner.style.display = 'inline-block'; banner.style.backgroundColor = '#9370db'; banner.textContent = `RÄDDNINGSPLANKAN (Förtur: ${allianceTeams[0]})`; }
     else if (currentQuestionPreEvent === 'alliansen') { banner.style.display = 'inline-block'; banner.style.backgroundColor = '#4169e1'; banner.textContent = `ALLIANSEN (${allianceTeams.join(" & ")})`; }
+    
     valDisplay.textContent = `Värde: ${activeDDValue} p`;
-    const adjustPointsDiv = document.getElementById('adjust-points'); adjustPointsDiv.innerHTML = '';
+    const adjustPointsDiv = document.getElementById('adjust-points'); 
+    adjustPointsDiv.innerHTML = '';
 
+    // Bygg poängknapparna för lagen
     teams.forEach(team => {
         const teamDiv = document.createElement('div'); teamDiv.classList.add('adjust-team');
         if (team === frozenTeam) { teamDiv.classList.add('team-frozen'); teamDiv.title = "Fryst denna runda!"; }
@@ -415,6 +426,20 @@ function showQuestionPopup(col, row) {
         const minusBtn = document.createElement('button'); minusBtn.textContent = 'Fel (−)'; minusBtn.className = 'btn-minus'; minusBtn.onclick = () => handlePointAdjustment(team, activeDDValue, false);
         btnGroup.append(plusBtn, minusBtn); teamDiv.append(teamNameP, btnGroup); adjustPointsDiv.appendChild(teamDiv);
     });
+
+    // --- NY KOD FÖR FACIT ---
+    const showAnsBtn = document.getElementById('show-answer-btn');
+    const answerText = currentBoard.answers && currentBoard.answers[col] ? currentBoard.answers[col][row] : '';
+
+    if (answerText && answerText.trim() !== '') {
+        showAnsBtn.style.display = 'inline-block';
+        showAnsBtn.onclick = () => {
+            questionText.textContent = `SVAR: ${answerText}`; // Byter ut frågan mot svaret
+            showAnsBtn.style.display = 'none'; // Döljer knappen när facit visas
+        };
+    } else {
+        if (showAnsBtn) showAnsBtn.style.display = 'none'; // Gömmer knappen helt om det inte finns något facit
+    }
 }
 
 function handlePointAdjustment(team, points, isCorrect) {
