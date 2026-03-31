@@ -282,26 +282,41 @@ function renderEditGrid() {
             const mediaKey = `${col}-${row}`;
             const hasMedia = currentBoard.media[mediaKey];
 
+            // Behållaren som hanterar popup-effekten
+            const editorDiv = document.createElement('div');
+            editorDiv.className = 'cell-editor';
+
             // Textruta för Frågan
             const qInput = document.createElement('textarea');
+            qInput.className = 'q-input';
             qInput.value = currentBoard.questions[col][row];
             qInput.placeholder = `Fråga ${row + 1} (${(row+1)*100}p)`;
             qInput.oninput = (e) => currentBoard.questions[col][row] = e.target.value;
-            cellWrapper.appendChild(qInput);
 
-            // Textruta för Facit (Ny)
+            // Textruta för Facit
             const aInput = document.createElement('textarea');
+            aInput.className = 'a-input';
             // Säkerhetskoll för äldre bräden som saknar answers-arrayen
             aInput.value = currentBoard.answers && currentBoard.answers[col] ? currentBoard.answers[col][row] : '';
             aInput.placeholder = `Facit (Frivilligt)`;
-            aInput.style.height = '30px'; 
-            aInput.style.marginTop = '5px';
-            aInput.style.backgroundColor = '#f8f9fa'; 
             aInput.oninput = (e) => {
                 if (!currentBoard.answers) currentBoard.answers = Array(6).fill(null).map(() => Array(5).fill(''));
                 currentBoard.answers[col][row] = e.target.value;
             };
-            cellWrapper.appendChild(aInput);
+
+            // Hantera Enter-tryck för att "spara" (stänga rutan). Shift+Enter ger ny rad.
+            const handleEnter = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault(); // Förhindra ny rad
+                    e.target.blur(); // Ta bort fokus (rutan fälls ihop)
+                }
+            };
+            qInput.onkeydown = handleEnter;
+            aInput.onkeydown = handleEnter;
+
+            editorDiv.appendChild(qInput);
+            editorDiv.appendChild(aInput);
+            cellWrapper.appendChild(editorDiv);
 
             // Indikator för Media
             if (hasMedia) {
