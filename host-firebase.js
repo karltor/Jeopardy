@@ -3,6 +3,7 @@ import { auth, db, signInAnonymously } from './firebase-config.js';
 import { 
     doc, 
     setDoc, 
+    getDoc,
     updateDoc, 
     onSnapshot, 
     collection, 
