@@ -24,9 +24,15 @@ let frozenTeam = null;
 let nextFrozenTeam = null;
 let allianceTeams = [];
 
-let roomId = Math.floor(1000 + Math.random() * 9000).toString(); 
+// Room State - Börja med en genererad kod
+let roomId = generateNewCode();
 let isLocked = false;
 let playersMap = {}; 
+
+function generateNewCode() {
+    // Genererar en 6-siffrig kod (mellan 100000 och 999999)
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     const boardName = localStorage.getItem('jeopardyCurrentGame');
@@ -34,18 +40,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentBoard = await getBoard(boardName);
     if (!currentBoard) { window.location.href = 'index.html'; return; }
     
-    setupFirebaseRoom(roomId, handleBuzzerUpdate, handlePlayersUpdate)
-        .catch(error => console.error("Firebase Setup Error:", error));
+    // Starta rums-initieringen med loop-logik för att säkra unik kod
+    await initializeRoom();
 
     initiateGameLogic();
     setupEventListeners();
     
-    document.getElementById('room-code-display').textContent = roomId;
+    // Kopiera länk-logik (använder den slutgiltiga koden efter initializeRoom)
     document.getElementById('copy-link-btn').addEventListener('click', () => {
         const playUrl = window.location.href.replace('host.html', 'play.html') + '?' + roomId;
         navigator.clipboard.writeText(playUrl).then(() => showToast('Länk kopierad!'));
     });
 });
+
+// NY FUNKTION: Hanterar skapande av rum och provar ny kod vid krock
+async function initializeRoom() {
+    let success = false;
+    let attempts = 0;
+
+    while (!success && attempts < 10) {
+        try {
+            console.log(`Försöker reservera rum ${roomId}...`);
+            await setupFirebaseRoom(roomId, handleBuzzerUpdate, handlePlayersUpdate);
+            
+            // Om setup lyckas
+            document.getElementById('room-code-display').textContent = roomId;
+            success = true;
+            console.log("Rummet skapat!");
+        } catch (error) {
+            if (error.message === "ROOM_TAKEN") {
+                console.warn(`Koden ${roomId} var upptagen. Provar en ny...`);
+                roomId = generateNewCode();
+                attempts++;
+            } else {
+                console.error("Firebase Setup Error:", error);
+                showToast("Kunde inte ansluta till Firebase.", true);
+                break;
+            }
+        }
+    }
+
+    if (!success) {
+        showToast("Kunde inte skapa ett spelrum. Testa att ladda om sidan.", true);
+    }
+}
 
 // --- CALLBACKS FRÅN FIREBASE ---
 function handleBuzzerUpdate(buzzes) {
@@ -281,15 +319,13 @@ function getLeader() {
     return sorted[0][0];
 }
 
-// SÄKRAD: flashEventSplash (Hanterar br-taggar utan innerHTML-risker)
 function flashEventSplash(title, subtitle, bgColor, buttonText, callback) {
     const splash = document.getElementById('generic-event-splash');
     document.getElementById('generic-event-title').textContent = title;
     
     const subEl = document.getElementById('generic-event-sub');
-    subEl.innerHTML = ''; // Rensa
+    subEl.innerHTML = ''; 
     
-    // Dela upp subtitle vid <br> och lägg till rader säkert
     subtitle.split('<br>').forEach((line, i, arr) => {
         subEl.appendChild(document.createTextNode(line));
         if (i < arr.length - 1) subEl.appendChild(document.createElement('br'));
@@ -489,14 +525,13 @@ function closeQuestionPopup() {
     if (Object.keys(viewedQuestions).length === totalQuestions) setTimeout(showEndScreen, 1000); 
 }
 
-// SÄKRAD: showEndScreen (Bygger DOM-noder istället för innerHTML-mallar)
 function showEndScreen() {
     document.getElementById('play-mode').style.display = 'none'; 
     document.getElementById('end-screen').style.display = 'block'; 
     
     const sortedTeams = Object.entries(teamScores).sort((a, b) => b[1] - a[1]);
     const resultsDiv = document.getElementById('results'); 
-    resultsDiv.innerHTML = ''; // Rensa
+    resultsDiv.innerHTML = ''; 
     
     const winnerH2 = document.createElement('h2');
     winnerH2.textContent = `Vinnare: ${sortedTeams[0][0]} med ${sortedTeams[0][1]} poäng!`;
