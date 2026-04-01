@@ -9,7 +9,14 @@ let editModeActive = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     boards = await loadAllBoards();
+    await checkForSharedBoard(); // <-- Hämtar eventuella delade bräden via länk
     renderSidebar();
+    
+    // Om vi importerade ett bräde via länk vill vi visa det direkt
+    if (currentBoardIndex !== -1) {
+        renderMainContent();
+    }
+    
     setupGlobalListeners();
 });
 
@@ -316,6 +323,53 @@ window.importBoard = async () => {
         showToast('Ogiltig JSON-kod.', true); 
     }
 };
+
+async function checkForSharedBoard() {
+    const params = new URLSearchParams(window.location.search);
+    const boardId = params.get('board');
+    if (!boardId) return;
+
+    try {
+        const docSnap = await getDoc(doc(db, "sharedBoards", boardId));
+        if (docSnap.exists()) {
+            const sharedBoard = docSnap.data();
+            
+            const boardData = {
+                name: sharedBoard.name,
+                categories: sharedBoard.categories,
+                questions: JSON.parse(sharedBoard.questionsJson),
+                answers: sharedBoard.answersJson ? JSON.parse(sharedBoard.answersJson) : null,
+                media: {} 
+            };
+
+            const existingIndex = boards.findIndex(b => b.name === boardData.name);
+            if (existingIndex >= 0) {
+                if (confirm(`Du har redan ett bräde med namnet "${boardData.name}". Vill du skriva över det?`)) {
+                    boards[existingIndex] = boardData;
+                    currentBoardIndex = existingIndex;
+                } else {
+                    boardData.name = boardData.name + ' (delad)';
+                    boards.push(boardData);
+                    currentBoardIndex = boards.length - 1;
+                }
+            } else {
+                boards.push(boardData);
+                currentBoardIndex = boards.length - 1;
+            }
+
+            await saveBoard(boards[currentBoardIndex]);
+            showToast(`Brädet "${boardData.name}" har importerats!`, false);
+        } else {
+            showToast('Länken är ogiltig eller brädet har raderats.', true);
+        }
+    } catch (e) {
+        console.error('Fel vid hämtning av delat bräde:', e);
+        showToast('Kunde inte hämta det delade brädet.', true);
+    }
+
+    // Rensar webbadressen så man inte importerar det igen vid refresh
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
 
 // ==========================================
 // AI & AUTENTISERING
