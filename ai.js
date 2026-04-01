@@ -109,7 +109,7 @@ STRIKTA REGLER:
         }
 
         const data = await response.json();
-        const aiText = data.candidates[0].content.parts[0].text;
+        let aiText = data.candidates[0].content.parts[0].text; // Byt ut const mot let här!
         const firstBrace = aiText.indexOf('{');
         const lastBrace = aiText.lastIndexOf('}');
         
