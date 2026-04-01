@@ -2,83 +2,103 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <title>Jeopardy - Meny</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css"> <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* För att hindra Tailwind från att paja ditt befintliga edit-grid */
+        #edit-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-900 h-screen overflow-hidden flex font-sans relative">
 
-    <div id="splash-screen">
-        <h1>Jeopardy</h1>
-        <div id="splash-buttons">
-            <button id="create-board">Skapa Nytt Bräde</button>
-            <button id="import-board-btn">Importera Bräde</button>
-        </div>
-        <div id="existing-boards">
-            <h2>Dina sparade bräden</h2>
-            <ul id="board-list"></ul>
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl transform translate-y-24 opacity-0 transition-all duration-300 z-[100] font-bold text-sm flex items-center gap-3 pointer-events-none">
+        <span id="toastIcon">✨</span>
+        <span id="toastMsg">Meddelande</span>
+    </div>
+
+    <div id="aiModal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 backdrop-blur-sm opacity-0 transition-opacity duration-200">
+        <div class="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl transform scale-95 transition-transform duration-200" id="aiModalContent">
+            <h3 class="text-2xl font-black mb-2 flex items-center gap-2 text-blue-600">✨ Skapa Jeopardy med AI</h3>
+            <p class="text-slate-500 mb-6 text-sm">Beskriv ett tema! AI:n bygger upp 6 kategorier med 5 frågor (100-500p) och svar i varje.</p>
+            
+            <textarea id="aiPrompt" class="w-full h-32 bg-slate-50 border border-slate-200 rounded-lg p-4 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4 resize-none" placeholder="T.ex. '90-tals nostalgi', 'Biologi och natur', eller blandade allmänbildande ämnen..."></textarea>
+            
+            <div id="aiLoading" class="hidden flex-col items-center justify-center py-4 mb-4">
+                <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <p class="text-sm font-bold text-blue-600 animate-pulse">AI:n bygger spelbrädet (detta tar ca 10-20 sekunder)...</p>
+            </div>
+
+            <div class="flex gap-3 mt-2" id="aiButtons">
+                <button onclick="closeAiModal()" class="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">Avbryt</button>
+                <button onclick="generateAiBoard()" class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-md">Generera Bräde</button>
+            </div>
         </div>
     </div>
 
-    <div id="edit-mode" style="display: none;">
-        <div id="edit-mode-buttons">
-            <button id="save-board">Spara Bräde</button>
-            <button id="toggle-image-mode" class="media-toggle">🖼 Bild</button>
-            <button id="toggle-sound-mode" class="media-toggle">🔊 Ljud</button>
-            <button id="return-main">Tillbaka till Start</button>
-        </div>
-        <div id="edit-grid"></div>
-    </div>
-
-    <div id="generic-modal" class="custom-modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-x" onclick="document.getElementById('generic-modal').style.display='none'">&times;</span>
-            <h2 id="generic-modal-title">Meddelande</h2>
-            <p id="generic-modal-text"></p>
-            <button onclick="document.getElementById('generic-modal').style.display='none'">OK</button>
-        </div>
-    </div>
-
-    <div id="import-modal" class="custom-modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-x" onclick="document.getElementById('import-modal').style.display='none'">&times;</span>
-            <h2>Importera Bräde</h2>
-            <p>Klistra in nyckeln för brädet nedan:</p>
-            <textarea id="import-key-input" rows="4"></textarea>
-            <button id="confirm-import-btn">Importera</button>
-            <button class="cancel-btn" onclick="document.getElementById('import-modal').style.display='none'">Avbryt</button>
+    <div id="exportModal" class="fixed inset-0 bg-slate-900/40 hidden items-center justify-center z-50 backdrop-blur-sm opacity-0 transition-opacity duration-200">
+        <div class="bg-white p-8 rounded-3xl max-w-sm w-full shadow-2xl transform scale-95 transition-transform duration-200" id="exportModalContent">
+            <div class="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" x2="12" y1="2" y2="15"></line></svg>
+            </div>
+            <h3 class="text-2xl font-black text-center mb-2">Dela bräde</h3>
+            <p class="text-slate-500 text-center mb-8 text-sm">Välj hur du vill dela detta spel.</p>
+            
+            <div class="space-y-3">
+                <button onclick="shareViaLink()" id="btnShareLink" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-black py-4 rounded-xl transition shadow-md flex items-center justify-center gap-2">
+                    Skapa delningslänk
+                </button>
+                <button onclick="copyJson()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 rounded-xl transition flex items-center justify-center gap-2">
+                    Kopiera JSON-kod
+                </button>
+            </div>
+            <button onclick="closeExportModal()" class="mt-6 w-full text-sm text-slate-400 font-bold hover:text-slate-600 transition">Avbryt</button>
         </div>
     </div>
 
-    <div id="share-modal" class="custom-modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-x" onclick="document.getElementById('share-modal').style.display='none'">&times;</span>
-            <h2>Dela Bräde</h2>
-            <p>Kopiera nyckeln nedan:</p>
-            <textarea id="share-key-output" rows="4" readonly></textarea>
-            <button id="copy-key-btn">Kopiera Nyckel</button>
+    <aside class="w-80 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10">
+        <div class="p-6 border-b border-slate-100 flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-md">
+                <span class="font-black text-xl">J!</span>
+            </div>
+            <h1 class="text-2xl font-black text-slate-800 tracking-tight">Jeopardy</h1>
         </div>
-    </div>
+        
+        <div class="p-4 flex-1 overflow-hidden flex flex-col">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Dina Sparade Spel</h2>
+            <div id="boardsList" class="space-y-1 overflow-y-auto flex-1">
+                </div>
+        </div>
+    </aside>
 
-    <div id="share-link-modal" class="custom-modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-x" onclick="document.getElementById('share-link-modal').style.display='none'">&times;</span>
-            <h2>Dela via Länk</h2>
-            <p id="share-link-status">Sparar brädet...</p>
-            <input type="text" id="share-link-output" readonly style="width:100%; padding:10px; font-size:1em; margin:10px 0; box-sizing:border-box;">
-            <button id="copy-link-share-btn">Kopiera Länk</button>
-        </div>
-    </div>
+    <main class="flex-1 flex flex-col relative bg-slate-50/50">
+        <header class="h-20 border-b border-slate-200 bg-white/80 backdrop-blur px-8 flex items-center justify-end gap-3 sticky top-0 z-10">
+            <button onclick="openAiModal()" class="px-4 py-2 text-sm font-semibold text-slate-800 bg-gradient-to-r from-amber-200 to-amber-400 hover:from-amber-300 hover:to-amber-500 rounded-md transition-colors flex items-center gap-2 shadow-sm border border-amber-300">
+                ✨ Skapa med AI
+            </button>
+            <button onclick="setView('import')" class="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors flex items-center gap-2">
+                Klistra in JSON
+            </button>
+            <button onclick="createNewBoard()" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors flex items-center gap-2 shadow-sm">
+                + Nytt Bräde
+            </button>
+        </header>
 
-    <div id="media-share-modal" class="custom-modal" style="display: none;">
-        <div class="modal-content media-share-block">
-            <div class="media-share-icon">⚠️</div>
-            <h2>Kan inte delas</h2>
-            <p>Det här brädet innehåller <strong>bilder eller ljud</strong> som är sparade lokalt på din enhet.</p>
-            <p style="color:#666; font-size:0.9em;">Media kan inte skickas via nyckel eller länk. Ta bort alla mediafiler från brädet om du vill dela det, eller dela det på en enhet som redan har brädet sparat.</p>
-            <button id="media-share-ok-btn">Jag förstår</button>
-        </div>
-    </div>
+        <div id="mainContent" class="flex-1 overflow-y-auto p-8">
+            </div>
+    </main>
 
     <script type="module" src="index.js"></script>
+    <script type="module" src="ai.js"></script>
 </body>
 </html>
