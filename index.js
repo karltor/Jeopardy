@@ -176,22 +176,43 @@ function renderViewMode(container, board) {
 }
 
 function renderEditMode(container, board) {
-    let gridHTML = `
-        <div class="max-w-7xl mx-auto">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-black text-slate-800">Redigerar manuellt: ${board.name}</h2>
-                <div class="flex gap-2">
-                    <button onclick="toggleEditMode()" class="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-md shadow-sm">Avbryt</button>
-                    <button onclick="saveCurrentEdit()" class="px-6 py-2 text-sm font-black text-white bg-green-600 hover:bg-green-700 rounded-md shadow-sm">Spara Ändringar</button>
-                </div>
-            </div>
-            <input type="text" id="editBoardName" value="${board.name}" class="w-full text-2xl font-bold p-3 mb-6 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-            <div class="grid grid-cols-6 gap-2" id="editGridContainer"></div>
-        </div>
-    `;
-    container.innerHTML = gridHTML;
-    const grid = document.getElementById('editGridContainer');
+    container.innerHTML = ''; // Rensa först
 
+    const wrapper = document.createElement('div');
+    wrapper.className = "max-w-7xl mx-auto";
+
+    // Header sektion
+    const header = document.createElement('div');
+    header.className = "flex items-center justify-between mb-6";
+
+    const h2 = document.createElement('h2');
+    h2.className = "text-2xl font-black text-slate-800";
+    h2.textContent = `Redigerar manuellt: ${board.name}`; // SÄKERT
+
+    const btnGroup = document.createElement('div');
+    btnGroup.className = "flex gap-2";
+    btnGroup.innerHTML = `
+        <button onclick="toggleEditMode()" class="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-md shadow-sm">Avbryt</button>
+        <button onclick="saveCurrentEdit()" class="px-6 py-2 text-sm font-black text-white bg-green-600 hover:bg-green-700 rounded-md shadow-sm">Spara Ändringar</button>
+    `;
+
+    header.append(h2, btnGroup);
+
+    // Namn-input
+    const nameInp = document.createElement('input');
+    nameInp.type = "text";
+    nameInp.id = "editBoardName";
+    nameInp.value = board.name; // SÄKERT (använder .value istället för attribut-sträng)
+    nameInp.className = "w-full text-2xl font-bold p-3 mb-6 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none";
+
+    const grid = document.createElement('div');
+    grid.className = "grid grid-cols-6 gap-2";
+    grid.id = "editGridContainer";
+
+    wrapper.append(header, nameInp, grid);
+    container.appendChild(wrapper);
+
+    // Rendera kategorier och frågor (precis som du redan påbörjat med createElement)
     board.categories.forEach((cat, i) => {
         const inp = document.createElement('input');
         inp.value = cat; 
@@ -208,23 +229,19 @@ function renderEditMode(container, board) {
             
             const qInp = document.createElement('textarea');
             qInp.value = board.questions[col][row]; 
-            qInp.placeholder = `${(row+1)*100}p Fråga`;
             qInp.className = "w-full h-24 resize-none text-sm leading-snug p-2 outline-none text-center bg-white";
             qInp.oninput = (e) => board.questions[col][row] = e.target.value;
 
             const aInp = document.createElement('textarea');
             aInp.value = (board.answers && board.answers[col]) ? board.answers[col][row] : ''; 
-            aInp.placeholder = `Facit (Frivilligt)`;
-            aInp.className = "w-full h-10 resize-none text-[10px] leading-tight p-1 outline-none text-center bg-slate-50 border-t border-slate-200 text-green-700 font-bold placeholder-slate-400";
+            aInp.className = "w-full h-10 resize-none text-[10px] leading-tight p-1 outline-none text-center bg-slate-50 border-t border-slate-200 text-green-700 font-bold";
             aInp.oninput = (e) => board.answers[col][row] = e.target.value;
 
-            cell.appendChild(qInp);
-            cell.appendChild(aInp);
+            cell.append(qInp, aInp);
             grid.appendChild(cell);
         }
     }
 }
-
 // ==========================================
 // INTERAKTIONER & KNAPPAR
 // ==========================================
