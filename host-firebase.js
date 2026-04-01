@@ -16,7 +16,7 @@ import {
 // Skapar rummet och lyssnar på buzzers & spelare
 export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
     
-    // FIX 1: Logga bara in anonymt om vi inte redan är inloggade (via Google/lärare)
+    // Logga in anonymt om vi inte redan är inloggade (via Google/lärare)
     if (!auth.currentUser) {
         try {
             await signInAnonymously(auth);
@@ -25,25 +25,30 @@ export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
             console.error("Kunde inte logga in anonymt:", e);
             throw new Error("Kunde inte ansluta till Firebase-tjänsten.");
         }
-    } else {
-        console.log("Använder befintlig inloggning:", auth.currentUser.email || "Anonym");
     }
-    
+
     const roomRef = doc(db, "rooms", roomId);
 
-    // FIX 2: Hantera "Missing Permissions" vid skapandet av rummet
+    // STEG 1 & 2: Kolla om rummet redan finns
+    const roomSnap = await getDoc(roomRef);
+    if (roomSnap.exists()) {
+        // Om rummet finns, kasta ett specifikt fel så host.js kan prova en ny kod
+        throw new Error("ROOM_TAKEN");
+    }
+
+    // Skapa rummet (detta tillåts av 'create'-regeln om dokumentet inte fanns)
     try {
         await setDoc(roomRef, {
             hostUid: auth.currentUser.uid,
             locked: false,
             teams: [],
             event: null,
-            createdAt: serverTimestamp() // Bra att ha för säkerhetsregler
+            createdAt: serverTimestamp(),
+            lastCleared: serverTimestamp()
         });
     } catch (error) {
-        console.error("Firebase Permission Error:", error);
-        // Detta händer om koden redan är upptagen av någon annan eller om din e-post inte validerats av reglerna
-        throw new Error("Kunde inte reservera rummet. Testa att ladda om sidan för en ny kod.");
+        console.error("Firebase Permission Error vid skapande:", error);
+        throw new Error("Kunde inte reservera rummet. Testa att ladda om sidan.");
     }
 
     // Lyssna på Buzzers
@@ -51,7 +56,7 @@ export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
     onSnapshot(query(buzzesRef, orderBy("timestamp", "asc")), (snapshot) => {
         const buzzes = [];
         snapshot.forEach(docSnap => buzzes.push(docSnap.data()));
-        onBuzzerAdd(buzzes); // Skickar datan tillbaka till host.js
+        onBuzzerAdd(buzzes); 
     });
 
     // Lyssna på inloggade elever
@@ -59,10 +64,9 @@ export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
     onSnapshot(playersRef, (snapshot) => {
         const playersMap = {};
         snapshot.forEach(docSnap => playersMap[docSnap.id] = docSnap.data());
-        onPlayersChange(playersMap); // Skickar datan tillbaka till host.js
+        onPlayersChange(playersMap); 
     });
 }
-
 // Lås / Lås upp buzzers
 export async function setRoomLock(roomId, isLocked) {
     try {
