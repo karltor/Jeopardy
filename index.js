@@ -19,7 +19,7 @@ async function saveAndRefresh() {
 }
 
 function displayBoardList() {
-    const boardList = document.getElementById('board-list');
+    const boardList = document.getElementById('boardList');
     if (!boardList) return; // Säkerhetskoll
     boardList.innerHTML = '';
 
@@ -77,25 +77,26 @@ function displayBoardList() {
 }
 
 function setupEventListeners() {
-    document.getElementById('create-board').addEventListener('click', createNewBoard);
+    // Lägg till ?. innan addEventListener på alla rader
+    document.getElementById('create-board')?.addEventListener('click', createNewBoard);
 
-    document.getElementById('import-board-btn').addEventListener('click', () => {
+    document.getElementById('import-board-btn')?.addEventListener('click', () => {
         document.getElementById('import-key-input').value = '';
         document.getElementById('import-modal').style.display = 'flex';
     });
 
-    document.getElementById('confirm-import-btn').addEventListener('click', importBoard);
-    document.getElementById('save-board').addEventListener('click', saveCurrentBoard);
+    document.getElementById('confirm-import-btn')?.addEventListener('click', importBoard);
+    document.getElementById('save-board')?.addEventListener('click', saveCurrentBoard);
 
-    document.getElementById('return-main').addEventListener('click', () => {
+    document.getElementById('return-main')?.addEventListener('click', () => {
         saveCurrentBoard();
         showSplashScreen();
     });
 
-    document.getElementById('toggle-image-mode').addEventListener('click', () => toggleMediaMode('image'));
-    document.getElementById('toggle-sound-mode').addEventListener('click', () => toggleMediaMode('sound'));
-    document.getElementById('copy-key-btn').addEventListener('click', copyKeyToClipboard);
-    document.getElementById('copy-link-share-btn').addEventListener('click', () => {
+    document.getElementById('toggle-image-mode')?.addEventListener('click', () => toggleMediaMode('image'));
+    document.getElementById('toggle-sound-mode')?.addEventListener('click', () => toggleMediaMode('sound'));
+    document.getElementById('copy-key-btn')?.addEventListener('click', copyKeyToClipboard);
+    document.getElementById('copy-link-share-btn')?.addEventListener('click', () => {
         const input = document.getElementById('share-link-output');
         input.select();
         navigator.clipboard.writeText(input.value).then(() => {
@@ -103,7 +104,7 @@ function setupEventListeners() {
         });
     });
 
-    document.getElementById('media-share-ok-btn').addEventListener('click', () => {
+    document.getElementById('media-share-ok-btn')?.addEventListener('click', () => {
         document.getElementById('media-share-modal').style.display = 'none';
     });
 }
@@ -433,3 +434,18 @@ export async function applyAiBoard(aiData) {
     renderEditGrid(); // Ritar upp UI:t med nya datan
     showModal('AI Klar!', 'Brädet har genererats och sparats!');
 }
+// Exponera funktioner till HTML (eftersom filen körs som en modul)
+window.createNewBoard = createNewBoard;
+
+// Du har en onclick="setView('import')" i din HTML. Vi fångar upp den här:
+window.setView = function(view) {
+    if (view === 'import') {
+        const importModal = document.getElementById('import-modal');
+        if (importModal) {
+            document.getElementById('import-key-input').value = '';
+            importModal.style.display = 'flex';
+        } else {
+            console.warn("Import-modalen saknas i HTML-koden!");
+        }
+    }
+};
