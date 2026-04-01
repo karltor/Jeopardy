@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     signInAnonymously(auth).catch(error => showToast("Kunde inte ansluta: " + error.message, true));
 
     const urlParams = window.location.search.substring(1);
-    if (urlParams && urlParams.length === 4) { 
+    if (urlParams && urlParams.length === 6) { 
         roomId = urlParams; 
         joinRoom(roomId); 
     }
