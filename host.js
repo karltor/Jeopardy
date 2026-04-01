@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentBoard = await getBoard(boardName);
     if (!currentBoard) { window.location.href = 'index.html'; return; }
     
-    // Initiera Firebase via vår nya modul
     setupFirebaseRoom(roomId, handleBuzzerUpdate, handlePlayersUpdate)
         .catch(error => console.error("Firebase Setup Error:", error));
 
@@ -282,10 +281,20 @@ function getLeader() {
     return sorted[0][0];
 }
 
+// SÄKRAD: flashEventSplash (Hanterar br-taggar utan innerHTML-risker)
 function flashEventSplash(title, subtitle, bgColor, buttonText, callback) {
     const splash = document.getElementById('generic-event-splash');
-    document.getElementById('generic-event-title').innerHTML = title;
-    document.getElementById('generic-event-sub').innerHTML = subtitle;
+    document.getElementById('generic-event-title').textContent = title;
+    
+    const subEl = document.getElementById('generic-event-sub');
+    subEl.innerHTML = ''; // Rensa
+    
+    // Dela upp subtitle vid <br> och lägg till rader säkert
+    subtitle.split('<br>').forEach((line, i, arr) => {
+        subEl.appendChild(document.createTextNode(line));
+        if (i < arr.length - 1) subEl.appendChild(document.createElement('br'));
+    });
+
     splash.style.background = bgColor;
     const btn = document.getElementById('generic-event-continue-btn');
     const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn);
@@ -321,7 +330,7 @@ function handleQuestionClick(e) {
         if (ev === 'lotterihjulet') triggerLotterihjulet(col, row);
         else if (ev === 'solospelaren') { 
             currentQuestionPreEvent = 'solospelaren'; 
-            setRoomEvent(roomId, 'solospelaren'); // Uppdaterar DB så elever kan rösta
+            setRoomEvent(roomId, 'solospelaren'); 
             flashEventSplash("SOLOSPELAREN!", "Välj EN person i laget som får svara.<br>Övriga tittar bort!", "radial-gradient(circle, #ff4500, #ff8c00)", "Visa Frågan", () => showQuestionPopup(col, row)); 
         }
         else if (ev === 'dubbeltrubbel') { currentQuestionPreEvent = 'dubbeltrubbel'; activeDDValue *= 2; flashEventSplash("DUBBELTRUBBEL!", "Värd dubbelt så mycket.<br>Gissar man fel får man dubbla minus!", "radial-gradient(circle, #8b0000, #ff0000)", "Visa Frågan", () => showQuestionPopup(col, row)); }
@@ -337,11 +346,15 @@ function handleQuestionClick(e) {
 }
 
 function triggerLotterihjulet(col, row) {
-    const splash = document.getElementById('generic-event-splash'); document.getElementById('generic-event-title').innerHTML = "LOTTERIHJULET!"; splash.style.background = "radial-gradient(circle, #ff1493, #ff69b4)";
+    const splash = document.getElementById('generic-event-splash'); 
+    document.getElementById('generic-event-title').textContent = "LOTTERIHJULET!"; 
+    splash.style.background = "radial-gradient(circle, #ff1493, #ff69b4)";
     const btn = document.getElementById('generic-event-continue-btn'); const newBtn = btn.cloneNode(true); btn.parentNode.replaceChild(newBtn, btn); newBtn.style.display = 'none'; splash.style.display = 'flex';
     let spins = 0; let bonus = 0;
     let interval = setInterval(() => {
-        bonus = [100, 200, 300][Math.floor(Math.random()*3)]; document.getElementById('generic-event-sub').innerHTML = `Bonus: +${bonus} p`; spins++;
+        bonus = [100, 200, 300][Math.floor(Math.random()*3)]; 
+        document.getElementById('generic-event-sub').textContent = `Bonus: +${bonus} p`; 
+        spins++;
         if(spins > 20) {
             clearInterval(interval); newBtn.style.display = 'block'; newBtn.textContent = "Visa Frågan";
             newBtn.onclick = () => { splash.style.display = 'none'; activeDDValue += bonus; currentQuestionPreEvent = 'lotteri'; showQuestionPopup(col, row); };
@@ -373,11 +386,9 @@ function showQuestionPopup(col, row) {
     const questionText = document.getElementById('question-text');
     const mediaContainer = document.getElementById('question-media');
     
-    // Hämta och sätt frågetexten
     const originalQuestion = currentBoard.questions[col][row] || '(Ingen fråga inlagd)';
     questionText.textContent = originalQuestion;
 
-    // Rensa gammal media
     mediaContainer.innerHTML = '';
     mediaContainer.style.display = 'none';
 
@@ -401,7 +412,6 @@ function showQuestionPopup(col, row) {
         }
     }
     
-    // Hantera banners
     const banner = document.getElementById('event-banner'); 
     const valDisplay = document.getElementById('question-value-display'); 
     banner.style.display = 'none';
@@ -415,7 +425,6 @@ function showQuestionPopup(col, row) {
     const adjustPointsDiv = document.getElementById('adjust-points'); 
     adjustPointsDiv.innerHTML = '';
 
-    // Bygg poängknapparna för lagen
     teams.forEach(team => {
         const teamDiv = document.createElement('div'); teamDiv.classList.add('adjust-team');
         if (team === frozenTeam) { teamDiv.classList.add('team-frozen'); teamDiv.title = "Fryst denna runda!"; }
@@ -427,18 +436,17 @@ function showQuestionPopup(col, row) {
         btnGroup.append(plusBtn, minusBtn); teamDiv.append(teamNameP, btnGroup); adjustPointsDiv.appendChild(teamDiv);
     });
 
-    // --- NY KOD FÖR FACIT ---
     const showAnsBtn = document.getElementById('show-answer-btn');
     const answerText = currentBoard.answers && currentBoard.answers[col] ? currentBoard.answers[col][row] : '';
 
     if (answerText && answerText.trim() !== '') {
         showAnsBtn.style.display = 'inline-block';
         showAnsBtn.onclick = () => {
-            questionText.textContent = `SVAR: ${answerText}`; // Byter ut frågan mot svaret
-            showAnsBtn.style.display = 'none'; // Döljer knappen när facit visas
+            questionText.textContent = `SVAR: ${answerText}`; 
+            showAnsBtn.style.display = 'none'; 
         };
     } else {
-        if (showAnsBtn) showAnsBtn.style.display = 'none'; // Gömmer knappen helt om det inte finns något facit
+        if (showAnsBtn) showAnsBtn.style.display = 'none';
     }
 }
 
@@ -474,16 +482,30 @@ function handlePointAdjustment(team, points, isCorrect) {
 
 function closeQuestionPopup() {
     document.getElementById('question-popup').style.display = 'none';
-    // Stop any playing audio
     const audio = document.querySelector('#question-media audio');
     if (audio) { audio.pause(); audio.currentTime = 0; }
     document.getElementById('question-media').innerHTML = '';
-    setRoomEvent(roomId, null); // Nollställ eventet i databasen
+    setRoomEvent(roomId, null); 
     if (Object.keys(viewedQuestions).length === totalQuestions) setTimeout(showEndScreen, 1000); 
 }
 
+// SÄKRAD: showEndScreen (Bygger DOM-noder istället för innerHTML-mallar)
 function showEndScreen() {
-    document.getElementById('play-mode').style.display = 'none'; document.getElementById('end-screen').style.display = 'block'; const sortedTeams = Object.entries(teamScores).sort((a, b) => b[1] - a[1]);
-    const resultsDiv = document.getElementById('results'); resultsDiv.innerHTML = `<h2>Vinnare: ${sortedTeams[0][0]} med ${sortedTeams[0][1]} poäng!</h2>`;
-    sortedTeams.slice(1).forEach(([team, score]) => { const div = document.createElement('div'); div.classList.add('team-result'); div.textContent = `${team}: ${score} p`; resultsDiv.appendChild(div); });
+    document.getElementById('play-mode').style.display = 'none'; 
+    document.getElementById('end-screen').style.display = 'block'; 
+    
+    const sortedTeams = Object.entries(teamScores).sort((a, b) => b[1] - a[1]);
+    const resultsDiv = document.getElementById('results'); 
+    resultsDiv.innerHTML = ''; // Rensa
+    
+    const winnerH2 = document.createElement('h2');
+    winnerH2.textContent = `Vinnare: ${sortedTeams[0][0]} med ${sortedTeams[0][1]} poäng!`;
+    resultsDiv.appendChild(winnerH2);
+
+    sortedTeams.slice(1).forEach(([team, score]) => { 
+        const div = document.createElement('div'); 
+        div.classList.add('team-result'); 
+        div.textContent = `${team}: ${score} p`; 
+        resultsDiv.appendChild(div); 
+    });
 }
