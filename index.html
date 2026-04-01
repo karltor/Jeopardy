@@ -18,7 +18,7 @@
         <div class="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl">
             <h3 class="text-2xl font-black mb-2 flex items-center gap-2 text-blue-600">✨ Skapa Jeopardy med AI</h3>
             <p class="text-slate-500 mb-6 text-sm">Beskriv ett tema! AI:n bygger upp 6 kategorier med 5 frågor (100-500p) och svar i varje.</p>
-            <textarea id="aiPrompt" class="w-full h-32 bg-slate-50 border border-slate-200 rounded-lg p-4 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none mb-4" placeholder="T.ex. '90-tals nostalgi'..."></textarea>
+            <textarea id="aiPrompt" class="w-full h-32 bg-slate-50 border border-slate-200 rounded-lg p-4 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none mb-4" placeholder="T.ex. '90-tals nostalgi', 'Biologi och natur'..."></textarea>
             
             <div id="aiLoading" class="hidden flex-col items-center justify-center py-4 mb-4">
                 <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
@@ -69,6 +69,20 @@
         </div>
     </div>
 
+    <div id="importModal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 backdrop-blur-sm transition-opacity duration-200">
+        <div class="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl">
+            <h3 class="text-2xl font-black text-center mb-2">Importera bräde</h3>
+            <p class="text-slate-500 text-center mb-6 text-sm">Klistra in JSON-koden för ett bräde nedan.</p>
+            
+            <textarea id="importKeyInput" class="w-full h-32 bg-slate-50 border border-slate-200 rounded-lg p-4 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none mb-4" placeholder='{"name": "...", "categories": [...]}'></textarea>
+            
+            <div class="flex gap-3">
+                <button onclick="closeImportModal()" class="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition">Avbryt</button>
+                <button onclick="importBoard()" class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-md">Importera</button>
+            </div>
+        </div>
+    </div>
+
     <aside class="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 flex-shrink-0">
         <div class="p-6 border-b border-slate-100 flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-md">
@@ -87,6 +101,9 @@
         <header class="h-20 border-b border-slate-200 bg-white/80 backdrop-blur px-8 flex items-center justify-end gap-3 flex-shrink-0">
             <button id="btnAuthAi" class="px-4 py-2 text-sm font-semibold text-slate-800 bg-gradient-to-r from-amber-200 to-amber-400 hover:from-amber-300 hover:to-amber-500 rounded-md transition-colors flex items-center gap-2 shadow-sm border border-amber-300">
                 ✨ Generera med AI
+            </button>
+            <button id="btnImport" class="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors flex items-center gap-2 border border-slate-200 shadow-sm">
+                Klistra in JSON
             </button>
             <button onclick="createNewBoard()" class="px-4 py-2 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-md transition-colors flex items-center gap-2 shadow-sm">
                 + Skapa Nytt Bräde
