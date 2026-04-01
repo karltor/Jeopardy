@@ -8,15 +8,22 @@ let currentBoardIndex = -1;
 let editModeActive = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    boards = await loadAllBoards();
-    await checkForSharedBoard(); // <-- Hämtar eventuella delade bräden via länk
-    renderSidebar();
-    
-    // Om vi importerade ett bräde via länk vill vi visa det direkt
-    if (currentBoardIndex !== -1) {
-        renderMainContent();
+    try {
+        // 1. Försök ladda lokala bräden (Kan krascha i superstrikt Inkognito)
+        boards = await loadAllBoards();
+    } catch (e) {
+        console.warn("Kunde inte ladda lokala sparfiler (kanske blockerat i Inkognito?):", e);
+        boards = []; // Vi sätter den till en tom array så att koden kan fortsätta
     }
+
+    // 2. Kolla efter delningslänk
+    await checkForSharedBoard(); 
     
+    // 3. Rita upp gränssnittet
+    renderSidebar();
+    renderMainContent(); // <-- Vi ser till att denna ALLTID körs nu!
+    
+    // 4. Lyssna på knapptryck
     setupGlobalListeners();
 });
 
