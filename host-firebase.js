@@ -1,17 +1,50 @@
 // host-firebase.js
 import { auth, db, signInAnonymously } from './firebase-config.js';
-import { doc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, getDocs, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { 
+    doc, 
+    setDoc, 
+    updateDoc, 
+    onSnapshot, 
+    collection, 
+    query, 
+    orderBy, 
+    getDocs, 
+    deleteDoc, 
+    serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
 // Skapar rummet och lyssnar på buzzers & spelare
 export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
-    await signInAnonymously(auth);
+    
+    // FIX 1: Logga bara in anonymt om vi inte redan är inloggade (via Google/lärare)
+    if (!auth.currentUser) {
+        try {
+            await signInAnonymously(auth);
+            console.log("Inloggad anonymt som host.");
+        } catch (e) {
+            console.error("Kunde inte logga in anonymt:", e);
+            throw new Error("Kunde inte ansluta till Firebase-tjänsten.");
+        }
+    } else {
+        console.log("Använder befintlig inloggning:", auth.currentUser.email || "Anonym");
+    }
     
     const roomRef = doc(db, "rooms", roomId);
-    await setDoc(roomRef, {
-        hostUid: auth.currentUser.uid,
-        locked: false,
-        teams: [],
-        event: null 
-    });
+
+    // FIX 2: Hantera "Missing Permissions" vid skapandet av rummet
+    try {
+        await setDoc(roomRef, {
+            hostUid: auth.currentUser.uid,
+            locked: false,
+            teams: [],
+            event: null,
+            createdAt: serverTimestamp() // Bra att ha för säkerhetsregler
+        });
+    } catch (error) {
+        console.error("Firebase Permission Error:", error);
+        // Detta händer om koden redan är upptagen av någon annan eller om din e-post inte validerats av reglerna
+        throw new Error("Kunde inte reservera rummet. Testa att ladda om sidan för en ny kod.");
+    }
 
     // Lyssna på Buzzers
     const buzzesRef = collection(db, "rooms", roomId, "buzzes");
@@ -32,36 +65,69 @@ export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
 
 // Lås / Lås upp buzzers
 export async function setRoomLock(roomId, isLocked) {
-    await updateDoc(doc(db, "rooms", roomId), { locked: isLocked });
+    try {
+        await updateDoc(doc(db, "rooms", roomId), { locked: isLocked });
+    } catch (e) {
+        console.error("Lock error:", e);
+    }
 }
 
 // Rensa buzzers
 export async function clearRoomBuzzers(roomId) {
-    const snapshot = await getDocs(collection(db, "rooms", roomId, "buzzes"));
-    snapshot.forEach((docSnap) => deleteDoc(doc(db, "rooms", roomId, "buzzes", docSnap.id)));
-    await updateDoc(doc(db, "rooms", roomId), { lastCleared: serverTimestamp() });
+    try {
+        const snapshot = await getDocs(collection(db, "rooms", roomId, "buzzes"));
+        const deletePromises = [];
+        snapshot.forEach((docSnap) => {
+            deletePromises.push(deleteDoc(doc(db, "rooms", roomId, "buzzes", docSnap.id)));
+        });
+        await Promise.all(deletePromises);
+        await updateDoc(doc(db, "rooms", roomId), { lastCleared: serverTimestamp() });
+    } catch (e) {
+        console.error("Clear error:", e);
+    }
 }
+
 // Synka uppdaterade lag till eleverna
 export async function syncTeams(roomId, teams) {
-    await updateDoc(doc(db, "rooms", roomId), { teams: teams });
+    try {
+        await updateDoc(doc(db, "rooms", roomId), { teams: teams });
+    } catch (e) {
+        console.error("Sync teams error:", e);
+    }
 }
 
 // Ändra lag på en specifik elev (Drag & Drop)
 export async function movePlayerTeam(roomId, uid, newTeam) {
-    await updateDoc(doc(db, "rooms", roomId, "players", uid), { team: newTeam });
+    try {
+        await updateDoc(doc(db, "rooms", roomId, "players", uid), { team: newTeam });
+    } catch (e) {
+        console.error("Move player error:", e);
+    }
 }
 
 // Byt namn på en spelare
 export async function renamePlayer(roomId, uid, newName) {
-    await updateDoc(doc(db, "rooms", roomId, "players", uid), { name: newName });
+    try {
+        await updateDoc(doc(db, "rooms", roomId, "players", uid), { name: newName });
+    } catch (e) {
+        console.error("Rename player error:", e);
+    }
 }
 
 // Kicka en spelare
 export async function kickPlayer(roomId, uid) {
-    await deleteDoc(doc(db, "rooms", roomId, "players", uid));
+    try {
+        await deleteDoc(doc(db, "rooms", roomId, "players", uid));
+    } catch (e) {
+        console.error("Kick player error:", e);
+    }
 }
 
-// Berätta för databasen (och eleverna) att ett event har startat (t.ex. Solospelaren)
+// Berätta för databasen (och eleverna) att ett event har startat
 export async function setRoomEvent(roomId, eventName) {
-    await updateDoc(doc(db, "rooms", roomId), { event: eventName });
+    try {
+        await updateDoc(doc(db, "rooms", roomId), { event: eventName });
+    } catch (e) {
+        console.error("Set event error:", e);
+    }
 }
