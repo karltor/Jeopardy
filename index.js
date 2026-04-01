@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-config.js';
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { loadAllBoards, saveBoard, deleteBoard, getBoard, boardHasMedia } from './board-db.js';
 
 let boards = [];
@@ -8,20 +8,23 @@ let currentBoardIndex = -1;
 let editModeActive = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log("Sidan laddad, påbörjar initiering...");
+    
     try {
-        // 1. Försök ladda lokala bräden (Kan krascha i superstrikt Inkognito)
+        // 1. Ladda lokala bräden
         boards = await loadAllBoards();
+        console.log("Lokala bräden laddade:", boards.length);
     } catch (e) {
-        console.warn("Kunde inte ladda lokala sparfiler (kanske blockerat i Inkognito?):", e);
-        boards = []; // Vi sätter den till en tom array så att koden kan fortsätta
+        console.warn("Kunde inte ladda lokala sparfiler:", e);
+        boards = [];
     }
 
-    // 2. Kolla efter delningslänk
+    // 2. Kolla efter delningslänk (VIKTIGT: Vi väntar på att denna blir klar)
     await checkForSharedBoard(); 
     
     // 3. Rita upp gränssnittet
     renderSidebar();
-    renderMainContent(); // <-- Vi ser till att denna ALLTID körs nu!
+    renderMainContent(); 
     
     // 4. Lyssna på knapptryck
     setupGlobalListeners();
@@ -33,10 +36,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function renderSidebar() {
     const list = document.getElementById('boardsList');
+    if (!list) return;
     list.innerHTML = '';
 
     if (boards.length === 0) {
-        list.innerHTML = '<p class="text-sm text-slate-400 p-2">Inga sparade bräden.</p>';
+        list.innerHTML = '<p class="text-sm text-slate-400 p-2 italic text-center">Inga sparade bräden.</p>';
         return;
     }
 
@@ -57,6 +61,7 @@ function renderSidebar() {
 }
 
 function selectBoard(index) {
+    console.log("Valde bräde index:", index);
     currentBoardIndex = index;
     editModeActive = false;
     renderSidebar();
@@ -65,6 +70,7 @@ function selectBoard(index) {
 
 function renderMainContent() {
     const container = document.getElementById('mainContent');
+    if (!container) return;
     
     if (currentBoardIndex === -1 || !boards[currentBoardIndex]) {
         container.innerHTML = `
@@ -84,26 +90,21 @@ function renderMainContent() {
     }
 }
 
-// VISNINGSLÄGET (Hela brädet syns)
 function renderViewMode(container, board) {
-    // Bygg upp HTML för hela Jeopardy-brädet för att ge en överblick
     let gridHTML = `<div class="grid grid-cols-6 gap-2 mt-6">`;
     
     board.categories.forEach((cat, col) => {
         gridHTML += `<div class="flex flex-col gap-2">`;
-        // Kategori-rubrik
-        gridHTML += `<div class="bg-blue-900 text-white font-bold p-3 text-center text-sm rounded-md shadow-sm h-14 flex items-center justify-center leading-tight">${cat || 'Tom Kategori'}</div>`;
+        gridHTML += `<div class="bg-blue-900 text-white font-bold p-3 text-center text-sm rounded-md shadow-sm h-14 flex items-center justify-center leading-tight uppercase tracking-tighter">${cat || '???'}</div>`;
         
-        // Gå igenom de 5 frågorna i denna kategori
         for(let row = 0; row < 5; row++) {
             const q = board.questions[col][row];
             const a = (board.answers && board.answers[col]) ? board.answers[col][row] : '';
             
-            // Fråge-kort med hover-effekt för att visa facit
             gridHTML += `
                 <div class="bg-white border border-slate-200 p-2 text-xs text-center rounded shadow-sm h-24 flex items-center justify-center relative group cursor-default overflow-hidden">
-                    <span class="line-clamp-5 leading-tight">${q || '-'}</span>
-                    ${a ? `<div class="absolute inset-0 bg-emerald-100 text-emerald-900 font-bold opacity-0 group-hover:opacity-100 p-2 text-xs flex items-center justify-center transition-opacity z-10 rounded text-center break-words">${a}</div>` : ''}
+                    <span class="line-clamp-5 leading-tight text-slate-700">${q || '-'}</span>
+                    ${a ? `<div class="absolute inset-0 bg-emerald-100 text-emerald-900 font-bold opacity-0 group-hover:opacity-100 p-2 text-[10px] flex items-center justify-center transition-opacity z-10 rounded text-center break-words leading-none">${a}</div>` : ''}
                 </div>`;
         }
         gridHTML += `</div>`;
@@ -121,7 +122,7 @@ function renderViewMode(container, board) {
                     <button onclick="handleAiAuthEdit()" class="px-3 py-2 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors flex items-center gap-1 shadow-sm">✨ Redigera med AI</button>
                     <button onclick="deleteCurrentBoard()" class="px-3 py-2 text-sm font-bold text-red-600 bg-white border border-slate-200 hover:bg-red-50 rounded-md transition-colors shadow-sm">Radera</button>
                     <button onclick="openShareModal()" class="px-3 py-2 text-sm font-bold text-blue-600 bg-white border border-slate-200 hover:bg-blue-50 rounded-md transition-colors shadow-sm">Dela</button>
-                    <button onclick="toggleEditMode()" class="px-3 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md transition-colors shadow-sm">Redigera Manuelllt</button>
+                    <button onclick="toggleEditMode()" class="px-3 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md transition-colors shadow-sm">Redigera Manuellt</button>
                     <button onclick="startGame()" class="px-6 py-2 text-sm font-black text-slate-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors flex items-center gap-2 shadow-sm">▶ Starta Spel</button>
                 </div>
             </div>
@@ -130,7 +131,6 @@ function renderViewMode(container, board) {
     `;
 }
 
-// REDIGERINGSLÄGET (Manuell redigering med minimal whitespace)
 function renderEditMode(container, board) {
     let gridHTML = `
         <div class="max-w-7xl mx-auto">
@@ -141,17 +141,13 @@ function renderEditMode(container, board) {
                     <button onclick="saveCurrentEdit()" class="px-6 py-2 text-sm font-black text-white bg-green-600 hover:bg-green-700 rounded-md shadow-sm">Spara Ändringar</button>
                 </div>
             </div>
-            
             <input type="text" id="editBoardName" value="${board.name}" class="w-full text-2xl font-bold p-3 mb-6 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-            
             <div class="grid grid-cols-6 gap-2" id="editGridContainer"></div>
         </div>
     `;
     container.innerHTML = gridHTML;
-    
     const grid = document.getElementById('editGridContainer');
 
-    // Måla upp kategorierna
     board.categories.forEach((cat, i) => {
         const inp = document.createElement('input');
         inp.value = cat; 
@@ -161,7 +157,6 @@ function renderEditMode(container, board) {
         grid.appendChild(inp);
     });
 
-    // Måla upp 30 textrutor för frågor och svar (Tajt och kompakt)
     for (let row = 0; row < 5; row++) {
         for (let col = 0; col < 6; col++) {
             const cell = document.createElement('div');
@@ -176,7 +171,7 @@ function renderEditMode(container, board) {
             const aInp = document.createElement('textarea');
             aInp.value = (board.answers && board.answers[col]) ? board.answers[col][row] : ''; 
             aInp.placeholder = `Facit (Frivilligt)`;
-            aInp.className = "w-full h-10 resize-none text-xs leading-tight p-1 outline-none text-center bg-slate-50 border-t border-slate-200 text-green-700 font-bold placeholder-slate-400";
+            aInp.className = "w-full h-10 resize-none text-[10px] leading-tight p-1 outline-none text-center bg-slate-50 border-t border-slate-200 text-green-700 font-bold placeholder-slate-400";
             aInp.oninput = (e) => board.answers[col][row] = e.target.value;
 
             cell.appendChild(qInp);
@@ -198,10 +193,7 @@ window.toggleEditMode = () => {
 window.saveCurrentEdit = async () => {
     const board = boards[currentBoardIndex];
     const nameInp = document.getElementById('editBoardName');
-    
-    if(nameInp) {
-        board.name = nameInp.value;
-    }
+    if(nameInp) board.name = nameInp.value;
     
     await saveBoard(board);
     boards = await loadAllBoards();
@@ -229,12 +221,9 @@ window.createNewBoard = () => {
 
 window.deleteCurrentBoard = async () => {
     if(!confirm("Är du säker på att du vill radera spelet?")) return;
-    
     await deleteBoard(boards[currentBoardIndex].name);
     boards = await loadAllBoards();
-    
     currentBoardIndex = boards.length > 0 ? 0 : -1;
-    
     renderSidebar();
     renderMainContent();
 };
@@ -259,13 +248,7 @@ window.closeShareModal = () => {
 
 window.copyJson = () => {
     const board = boards[currentBoardIndex];
-    const exportBoard = { 
-        name: board.name, 
-        categories: board.categories, 
-        questions: board.questions, 
-        answers: board.answers 
-    };
-    
+    const exportBoard = { name: board.name, categories: board.categories, questions: board.questions, answers: board.answers };
     navigator.clipboard.writeText(JSON.stringify(exportBoard)).then(() => {
         showToast("JSON kopierad till urklipp!", false);
         closeShareModal();
@@ -274,10 +257,8 @@ window.copyJson = () => {
 
 window.shareViaLink = async () => {
     const board = boards[currentBoardIndex];
-    
     try {
         const shareId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-        
         await setDoc(doc(db, "sharedBoards", shareId), {
             name: board.name, 
             categories: board.categories, 
@@ -285,7 +266,6 @@ window.shareViaLink = async () => {
             answersJson: board.answers ? JSON.stringify(board.answers) : null, 
             sharedAt: new Date().toISOString()
         });
-        
         const shareUrl = window.location.href.split('?')[0] + '?board=' + shareId;
         document.getElementById('shareLinkOutput').value = shareUrl;
         document.getElementById('shareLinkContainer').classList.remove('hidden');
@@ -308,38 +288,34 @@ window.importBoard = async () => {
     try {
         const newBoard = JSON.parse(key);
         if (newBoard && newBoard.name) {
-            // Skapa tomt media-objekt om det saknas
             if (!newBoard.media) newBoard.media = {};
-            
             await saveBoard(newBoard);
             boards = await loadAllBoards();
-            
-            // Hitta det importerade brädet och sätt fokus på det
             currentBoardIndex = boards.findIndex(b => b.name === newBoard.name);
             if(currentBoardIndex === -1) currentBoardIndex = boards.length - 1;
-
             closeImportModal();
             showToast('Brädet har importerats!', false);
-            
             renderSidebar();
             renderMainContent();
-        } else {
-            throw new Error("Ogiltig JSON");
-        }
-    } catch (e) { 
-        showToast('Ogiltig JSON-kod.', true); 
-    }
+        } else throw new Error("Ogiltig JSON");
+    } catch (e) { showToast('Ogiltig JSON-kod.', true); }
 };
 
+// --- KRITISK FIX FÖR DELNINGSLÄNKAR ---
 async function checkForSharedBoard() {
     const params = new URLSearchParams(window.location.search);
     const boardId = params.get('board');
     if (!boardId) return;
 
+    console.log("Delnings-ID hittat:", boardId);
+
     try {
-        const docSnap = await getDoc(doc(db, "sharedBoards", boardId));
+        const docRef = doc(db, "sharedBoards", boardId);
+        const docSnap = await getDoc(docRef);
+
         if (docSnap.exists()) {
             const sharedBoard = docSnap.data();
+            console.log("Hämtade bräde från Firestore:", sharedBoard.name);
             
             const boardData = {
                 name: sharedBoard.name,
@@ -351,11 +327,11 @@ async function checkForSharedBoard() {
 
             const existingIndex = boards.findIndex(b => b.name === boardData.name);
             if (existingIndex >= 0) {
-                if (confirm(`Du har redan ett bräde med namnet "${boardData.name}". Vill du skriva över det?`)) {
+                if (confirm(`Du har redan "${boardData.name}". Skriva över?`)) {
                     boards[existingIndex] = boardData;
                     currentBoardIndex = existingIndex;
                 } else {
-                    boardData.name = boardData.name + ' (delad)';
+                    boardData.name += ' (delad)';
                     boards.push(boardData);
                     currentBoardIndex = boards.length - 1;
                 }
@@ -367,14 +343,13 @@ async function checkForSharedBoard() {
             await saveBoard(boards[currentBoardIndex]);
             showToast(`Brädet "${boardData.name}" har importerats!`, false);
         } else {
+            console.warn("Dokumentet hittades inte i Firestore");
             showToast('Länken är ogiltig eller brädet har raderats.', true);
         }
     } catch (e) {
         console.error('Fel vid hämtning av delat bräde:', e);
         showToast('Kunde inte hämta det delade brädet.', true);
     }
-
-    // Rensar webbadressen så man inte importerar det igen vid refresh
     window.history.replaceState({}, document.title, window.location.pathname);
 }
 
@@ -383,29 +358,20 @@ async function checkForSharedBoard() {
 // ==========================================
 
 function setupGlobalListeners() {
-    // Generera Nytt AI-bräde
     document.getElementById('btnAuthAi')?.addEventListener('click', () => handleAiAuth(false));
-    // Importera
     document.getElementById('btnImport')?.addEventListener('click', () => window.openImportModal());
 }
 
-// Redigera befintligt AI-bräde
 window.handleAiAuthEdit = () => handleAiAuth(true);
 
 async function handleAiAuth(isEditMode) {
-    if (auth.currentUser) { 
-        verifyDomainAndOpenAi(auth.currentUser, isEditMode); 
-        return; 
-    }
-    
+    if (auth.currentUser) { verifyDomainAndOpenAi(auth.currentUser, isEditMode); return; }
     try {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
         const result = await signInWithPopup(auth, provider);
         verifyDomainAndOpenAi(result.user, isEditMode);
-    } catch (error) { 
-        showToast("Inloggningen avbröts.", true); 
-    }
+    } catch (error) { showToast("Inloggningen avbröts.", true); }
 }
 
 function verifyDomainAndOpenAi(user, isEditMode) {
@@ -421,36 +387,24 @@ function verifyDomainAndOpenAi(user, isEditMode) {
 
 window.showToast = function(message, isError = false) {
     const toast = document.getElementById('toast');
+    if(!toast) return;
     document.getElementById('toastMsg').textContent = message;
     document.getElementById('toastIcon').textContent = isError ? '⚠️' : '✨';
-    
     toast.className = `fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-[100] font-bold text-sm flex items-center gap-3 ${isError ? 'bg-red-600' : 'bg-slate-900'} text-white transform translate-y-0 opacity-100`;
-    
-    setTimeout(() => { 
-        toast.classList.add('translate-y-24', 'opacity-0'); 
-        toast.classList.remove('translate-y-0', 'opacity-100'); 
-    }, 3000);
+    setTimeout(() => { toast.classList.add('translate-y-24', 'opacity-0'); toast.classList.remove('translate-y-0', 'opacity-100'); }, 3000);
 };
 
-// Export-funktioner som ai.js kan kalla på
-export function getCurrentBoardForAI() { 
-    return boards[currentBoardIndex]; 
-}
+export function getCurrentBoardForAI() { return boards[currentBoardIndex]; }
 
 export async function applyAiBoard(aiData, overwriteCurrent = false) {
     if (!overwriteCurrent || currentBoardIndex === -1) {
-        // Lägg till som nytt bräde
         boards.push(aiData);
         currentBoardIndex = boards.length - 1;
     } else {
-        // Skriv över det befintliga brädet på samma index
         boards[currentBoardIndex] = aiData; 
     }
-    
     await saveBoard(boards[currentBoardIndex]);
     boards = await loadAllBoards();
-    
-    // Auto-fokusera på spelet och tvinga gränssnittet att hoppa till visningsläget
     selectBoard(currentBoardIndex); 
     showToast("Brädet är redo!", false);
 }
