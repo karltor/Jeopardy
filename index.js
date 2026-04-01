@@ -40,7 +40,10 @@ function renderSidebar() {
     list.innerHTML = '';
 
     if (boards.length === 0) {
-        list.innerHTML = '<p class="text-sm text-slate-400 p-2 italic text-center">Inga sparade bräden.</p>';
+        const emptyMsg = document.createElement('p');
+        emptyMsg.className = "text-sm text-slate-400 p-2 italic text-center";
+        emptyMsg.textContent = "Inga sparade bräden.";
+        list.appendChild(emptyMsg);
         return;
     }
 
@@ -50,10 +53,17 @@ function renderSidebar() {
         
         btn.className = `w-full text-left px-4 py-3 flex justify-between items-center rounded-lg transition-colors border ${isActive ? 'bg-amber-50 border-amber-200 text-slate-900 font-bold' : 'bg-transparent border-transparent text-slate-600 hover:bg-slate-100'}`;
         
-        btn.innerHTML = `
-            <span class="truncate pr-2">${board.name}</span>
-            <span class="text-xs ${isActive ? 'text-amber-600' : 'text-slate-400'} font-bold flex-shrink-0">30</span>
-        `;
+        // SÄKER RENDERING: Skapa element istället för innerHTML-sträng
+        const nameSpan = document.createElement('span');
+        nameSpan.className = "truncate pr-2";
+        nameSpan.textContent = board.name; // <--- Säkert!
+
+        const countSpan = document.createElement('span');
+        countSpan.className = `text-xs ${isActive ? 'text-amber-600' : 'text-slate-400'} font-bold flex-shrink-0`;
+        countSpan.textContent = "30";
+
+        btn.appendChild(nameSpan);
+        btn.appendChild(countSpan);
         
         btn.onclick = () => selectBoard(index);
         list.appendChild(btn);
@@ -72,17 +82,21 @@ function renderMainContent() {
     const container = document.getElementById('mainContent');
     if (!container) return;
     
+    // Rensa containern helt
+    container.innerHTML = '';
+
     if (currentBoardIndex === -1 || !boards[currentBoardIndex]) {
-        container.innerHTML = `
-            <div class="h-full flex flex-col items-center justify-center text-slate-400">
-                <p class="text-xl font-bold">Välj ett bräde i menyn eller skapa ett nytt.</p>
-            </div>
-        `;
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = "h-full flex flex-col items-center justify-center text-slate-400";
+        const p = document.createElement('p');
+        p.className = "text-xl font-bold";
+        p.textContent = "Välj ett bräde i menyn eller skapa ett nytt.";
+        emptyDiv.appendChild(p);
+        container.appendChild(emptyDiv);
         return;
     }
 
     const board = boards[currentBoardIndex];
-
     if (editModeActive) {
         renderEditMode(container, board);
     } else {
@@ -91,44 +105,74 @@ function renderMainContent() {
 }
 
 function renderViewMode(container, board) {
-    let gridHTML = `<div class="grid grid-cols-6 gap-2 mt-6">`;
-    
+    // 1. Skapa Header-sektionen säkert
+    const wrapper = document.createElement('div');
+    wrapper.className = "max-w-7xl mx-auto";
+
+    const header = document.createElement('div');
+    header.className = "flex items-end justify-between mb-2";
+
+    const titleInfo = document.createElement('div');
+    const h1 = document.createElement('h1');
+    h1.className = "text-4xl font-black text-slate-800 mb-2";
+    h1.textContent = board.name; // <--- Säkert!
+    const subP = document.createElement('p');
+    subP.className = "text-slate-500 font-medium";
+    subP.textContent = "30 frågor i detta paket";
+    titleInfo.append(h1, subP);
+
+    // Knappar (vi kan använda innerHTML här för ikoner eftersom texten är statisk/hårdkodad)
+    const btnGroup = document.createElement('div');
+    btnGroup.className = "flex gap-2";
+    btnGroup.innerHTML = `
+        <button onclick="handleAiAuthEdit()" class="px-3 py-2 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors flex items-center gap-1 shadow-sm">✨ Redigera med AI</button>
+        <button onclick="deleteCurrentBoard()" class="px-3 py-2 text-sm font-bold text-red-600 bg-white border border-slate-200 hover:bg-red-50 rounded-md transition-colors shadow-sm">Radera</button>
+        <button onclick="openShareModal()" class="px-3 py-2 text-sm font-bold text-blue-600 bg-white border border-slate-200 hover:bg-blue-50 rounded-md transition-colors shadow-sm">Dela</button>
+        <button onclick="toggleEditMode()" class="px-3 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md transition-colors shadow-sm">Redigera Manuellt</button>
+        <button onclick="startGame()" class="px-6 py-2 text-sm font-black text-slate-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors flex items-center gap-2 shadow-sm">▶ Starta Spel</button>
+    `;
+
+    header.append(titleInfo, btnGroup);
+    wrapper.appendChild(header);
+
+    // 2. Skapa Grid-systemet säkert
+    const grid = document.createElement('div');
+    grid.className = "grid grid-cols-6 gap-2 mt-6";
+
     board.categories.forEach((cat, col) => {
-        gridHTML += `<div class="flex flex-col gap-2">`;
-        gridHTML += `<div class="bg-blue-900 text-white font-bold p-3 text-center text-sm rounded-md shadow-sm h-14 flex items-center justify-center leading-tight uppercase tracking-tighter">${cat || '???'}</div>`;
-        
+        const colDiv = document.createElement('div');
+        colDiv.className = "flex flex-col gap-2";
+
+        const catHead = document.createElement('div');
+        catHead.className = "bg-blue-900 text-white font-bold p-3 text-center text-sm rounded-md shadow-sm h-14 flex items-center justify-center leading-tight uppercase tracking-tighter";
+        catHead.textContent = cat || '???'; // <--- Säkert!
+        colDiv.appendChild(catHead);
+
         for(let row = 0; row < 5; row++) {
             const q = board.questions[col][row];
             const a = (board.answers && board.answers[col]) ? board.answers[col][row] : '';
-            
-            gridHTML += `
-                <div class="bg-white border border-slate-200 p-2 text-xs text-center rounded shadow-sm h-24 flex items-center justify-center relative group cursor-default overflow-hidden">
-                    <span class="line-clamp-5 leading-tight text-slate-700">${q || '-'}</span>
-                    ${a ? `<div class="absolute inset-0 bg-emerald-100 text-emerald-900 font-bold opacity-0 group-hover:opacity-100 p-2 text-[10px] flex items-center justify-center transition-opacity z-10 rounded text-center break-words leading-none">${a}</div>` : ''}
-                </div>`;
-        }
-        gridHTML += `</div>`;
-    });
-    gridHTML += `</div>`;
 
-    container.innerHTML = `
-        <div class="max-w-7xl mx-auto">
-            <div class="flex items-end justify-between mb-2">
-                <div>
-                    <h1 class="text-4xl font-black text-slate-800 mb-2">${board.name}</h1>
-                    <p class="text-slate-500 font-medium">30 frågor i detta paket</p>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="handleAiAuthEdit()" class="px-3 py-2 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors flex items-center gap-1 shadow-sm">✨ Redigera med AI</button>
-                    <button onclick="deleteCurrentBoard()" class="px-3 py-2 text-sm font-bold text-red-600 bg-white border border-slate-200 hover:bg-red-50 rounded-md transition-colors shadow-sm">Radera</button>
-                    <button onclick="openShareModal()" class="px-3 py-2 text-sm font-bold text-blue-600 bg-white border border-slate-200 hover:bg-blue-50 rounded-md transition-colors shadow-sm">Dela</button>
-                    <button onclick="toggleEditMode()" class="px-3 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md transition-colors shadow-sm">Redigera Manuellt</button>
-                    <button onclick="startGame()" class="px-6 py-2 text-sm font-black text-slate-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors flex items-center gap-2 shadow-sm">▶ Starta Spel</button>
-                </div>
-            </div>
-            ${gridHTML}
-        </div>
-    `;
+            const cell = document.createElement('div');
+            cell.className = "bg-white border border-slate-200 p-2 text-xs text-center rounded shadow-sm h-24 flex items-center justify-center relative group cursor-default overflow-hidden";
+            
+            const qSpan = document.createElement('span');
+            qSpan.className = "line-clamp-5 leading-tight text-slate-700";
+            qSpan.textContent = q || '-'; // <--- Säkert!
+            cell.appendChild(qSpan);
+
+            if (a) {
+                const aDiv = document.createElement('div');
+                aDiv.className = "absolute inset-0 bg-emerald-100 text-emerald-900 font-bold opacity-0 group-hover:opacity-100 p-2 text-[10px] flex items-center justify-center transition-opacity z-10 rounded text-center break-words leading-none";
+                aDiv.textContent = a; // <--- Säkert!
+                cell.appendChild(aDiv);
+            }
+            colDiv.appendChild(cell);
+        }
+        grid.appendChild(colDiv);
+    });
+
+    wrapper.appendChild(grid);
+    container.appendChild(wrapper);
 }
 
 function renderEditMode(container, board) {
