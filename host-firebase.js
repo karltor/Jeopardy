@@ -11,13 +11,14 @@ import {
     orderBy, 
     getDocs, 
     deleteDoc, 
-    serverTimestamp 
+    serverTimestamp,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 // Skapar rummet och lyssnar på buzzers & spelare
 export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
     
-    // Logga in anonymt om vi inte redan är inloggade (via Google/lärare)
+    // Logga in anonymt om vi inte redan är inloggade
     if (!auth.currentUser) {
         try {
             await signInAnonymously(auth);
@@ -29,27 +30,40 @@ export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
     }
 
     const roomRef = doc(db, "rooms", roomId);
+    const userLimitRef = doc(db, "users", auth.currentUser.uid);
 
-    // STEG 1 & 2: Kolla om rummet redan finns
+    // Kontrollera om rummet redan finns
     const roomSnap = await getDoc(roomRef);
     if (roomSnap.exists()) {
-        // Om rummet finns, kasta ett specifikt fel så host.js kan prova en ny kod
         throw new Error("ROOM_TAKEN");
     }
 
-    // Skapa rummet (detta tillåts av 'create'-regeln om dokumentet inte fanns)
+    // Skapa en Batch för att köra rate-limit-logik och rumskapande samtidigt
+    const batch = writeBatch(db);
+
+    // 1. Förbered rummet
+    batch.set(roomRef, {
+        hostUid: auth.currentUser.uid,
+        locked: false,
+        teams: [],
+        event: null,
+        createdAt: serverTimestamp(),
+        lastCleared: serverTimestamp()
+    });
+
+    // 2. Uppdatera användarens tidsstämpel för rate-limiting (använder merge för att skapa om doc saknas)
+    batch.set(userLimitRef, {
+        lastRoomCreated: serverTimestamp()
+    }, { merge: true });
+
     try {
-        await setDoc(roomRef, {
-            hostUid: auth.currentUser.uid,
-            locked: false,
-            teams: [],
-            event: null,
-            createdAt: serverTimestamp(),
-            lastCleared: serverTimestamp()
-        });
+        // Skicka båda ändringarna samtidigt. Om reglerna nekar den ena, nekas båda.
+        await batch.commit();
+        console.log(`Rum ${roomId} reserverat och tidsstämpel uppdaterad.`);
     } catch (error) {
         console.error("Firebase Permission Error vid skapande:", error);
-        throw new Error("Kunde inte reservera rummet. Testa att ladda om sidan.");
+        // Oftast betyder detta att användaren försöker skapa rum för snabbt enligt reglerna
+        throw new Error("RATE_LIMIT_EXCEEDED");
     }
 
     // Lyssna på Buzzers
@@ -68,6 +82,7 @@ export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
         onPlayersChange(playersMap); 
     });
 }
+
 // Lås / Lås upp buzzers
 export async function setRoomLock(roomId, isLocked) {
     try {
