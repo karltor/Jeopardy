@@ -6,36 +6,52 @@ service cloud.firestore {
     function isTeacher() {
       return request.auth != null 
              && request.auth.token.email != null
-             && request.auth.token.email.matches('.*@nyamunken\\.se')
+             && (request.auth.token.email.matches('.*@nyamunken\\.se') || request.auth.token.email.matches('.*@utb\\.linkoping\\.se'))
              && !request.auth.token.email.matches('.*[0-9]{3}.*');
     }
 
-    // --- NYTT: Hemligheter (t.ex. API-nycklar) ---
+    // Hjälpfunktion: Kollar om användaren får skapa ett rum (Rate limit: 30 sekunder)
+    function canCreateRoom() {
+      let userDoc = /databases/$(database)/documents/users/$(request.auth.uid);
+      return request.auth != null && (
+        !exists(userDoc) || 
+        get(userDoc).data.lastRoomCreated < request.time - duration.value(30, 's')
+      );
+    }
+
+    // --- NYTT: Användarlogg för Rate Limiting ---
+    match /users/{uid} {
+      // Man får läsa och skriva sitt eget dokument för att uppdatera tidsstämpeln
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // --- Hemligheter (t.ex. API-nycklar) ---
     match /secrets/{docId} {
-      // Endast verifierade lärare får läsa dokumentet
       allow read: if isTeacher();
-      // Ingen får skriva från klienten (du lägger in nyckeln manuellt i Firebase Console)
       allow write: if false; 
     }
 
-    // --- Dina befintliga regler ---
+    // --- Rum och Buzzer-logik ---
     match /rooms/{roomId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      
+      // Enbart tillåtet att skapa om man väntat 30 sekunder sedan sist
+      allow create: if canCreateRoom();
+      
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.hostUid;
       
       match /players/{uid} {
         allow read: if true;
-        // Elev får skapa sin profil
         allow create: if request.auth != null && request.auth.uid == uid;
 
-        // ANTI-FUSK: Elev får uppdatera profilen, MEN de får BARA ändra fältet 'vote'.
+        // Elev får bara ändra 'vote'-fältet
         allow update: if request.auth != null && request.auth.uid == uid
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vote']);
 
         // Host får ändra allt
         allow write: if request.auth != null && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;
       }
+
       match /buzzes/{buzzId} {
         allow read: if true;
         allow create: if request.auth != null && request.auth.uid == buzzId && get(/databases/$(database)/documents/rooms/$(roomId)).data.locked == false;
@@ -43,9 +59,12 @@ service cloud.firestore {
       }
     }
     
+    // --- Delade bräden (Skydd mot spam) ---
     match /sharedBoards/{boardId} {
       allow read: if true;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null 
+                    && request.resource.size < 50 * 1024           // Max 50KB total storlek
+                    && request.resource.data.name.size() < 100;    // Max 100 tecken i namnet
       allow update, delete: if false;
     }
   }
