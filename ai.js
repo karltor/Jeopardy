@@ -110,7 +110,14 @@ STRIKTA REGLER:
 
         const data = await response.json();
         const aiText = data.candidates[0].content.parts[0].text;
+        const firstBrace = aiText.indexOf('{');
+        const lastBrace = aiText.lastIndexOf('}');
         
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            aiText = aiText.substring(firstBrace, lastBrace + 1);
+        } else {
+            throw new Error("Kunde inte hitta ett giltigt JSON-objekt i AI:ns svar.");
+        }
         // 5. Tolka JSON och säkerställ format
         const generatedBoard = JSON.parse(aiText);
 
