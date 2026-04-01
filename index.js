@@ -20,6 +20,7 @@ async function saveAndRefresh() {
 
 function displayBoardList() {
     const boardList = document.getElementById('board-list');
+    if (!boardList) return; // Säkerhetskoll
     boardList.innerHTML = '';
 
     if (boards.length === 0) {
@@ -146,7 +147,7 @@ async function shareViaLink(index) {
             name: board.name,
             categories: board.categories,
             questionsJson: JSON.stringify(board.questions),
-            answersJson: board.answers ? JSON.stringify(board.answers) : null, // NY RAD
+            answersJson: board.answers ? JSON.stringify(board.answers) : null,
             sharedAt: new Date().toISOString()
         });
 
@@ -172,7 +173,6 @@ async function checkForSharedBoard() {
                 name: sharedBoard.name,
                 categories: sharedBoard.categories,
                 questions: JSON.parse(sharedBoard.questionsJson),
-                // LÄGG TILL DENNA RAD. Den kollar om answersJson finns (för bakåtkompatibilitet)
                 answers: sharedBoard.answersJson ? JSON.parse(sharedBoard.answersJson) : null 
             };
 
@@ -233,7 +233,7 @@ function createNewBoard() {
         name: 'Nytt Spel', 
         categories: Array(6).fill(''), 
         questions: Array(6).fill(null).map(() => Array(5).fill('')), 
-        answers: Array(6).fill(null).map(() => Array(5).fill('')), // NY RAD
+        answers: Array(6).fill(null).map(() => Array(5).fill('')),
         media: {} 
     };
     editCurrentBoard();
@@ -242,14 +242,13 @@ function createNewBoard() {
 function editBoard(index) {
     currentBoard = JSON.parse(JSON.stringify(boards[index]));
     if (!currentBoard.media) currentBoard.media = {};
-    // NY KOD: Bakåtkompatibilitet för facit
     if (!currentBoard.answers) {
         currentBoard.answers = Array(6).fill(null).map(() => Array(5).fill(''));
     }
     editCurrentBoard();
 }
 
-let mediaMode = null; // null, 'image', or 'sound'
+let mediaMode = null;
 
 function editCurrentBoard() {
     mediaMode = null;
@@ -260,6 +259,7 @@ function editCurrentBoard() {
 
 function renderEditGrid() {
     const editGrid = document.getElementById('edit-grid');
+    if (!editGrid) return;
     editGrid.innerHTML = '';
 
     const nameInput = document.createElement('input');
@@ -282,21 +282,17 @@ function renderEditGrid() {
             const mediaKey = `${col}-${row}`;
             const hasMedia = currentBoard.media[mediaKey];
 
-            // Behållaren som hanterar popup-effekten
             const editorDiv = document.createElement('div');
             editorDiv.className = 'cell-editor';
 
-            // Textruta för Frågan
             const qInput = document.createElement('textarea');
             qInput.className = 'q-input';
             qInput.value = currentBoard.questions[col][row];
             qInput.placeholder = `Fråga ${row + 1} (${(row+1)*100}p)`;
             qInput.oninput = (e) => currentBoard.questions[col][row] = e.target.value;
 
-            // Textruta för Facit
             const aInput = document.createElement('textarea');
             aInput.className = 'a-input';
-            // Säkerhetskoll för äldre bräden som saknar answers-arrayen
             aInput.value = currentBoard.answers && currentBoard.answers[col] ? currentBoard.answers[col][row] : '';
             aInput.placeholder = `Facit (Frivilligt)`;
             aInput.oninput = (e) => {
@@ -304,11 +300,10 @@ function renderEditGrid() {
                 currentBoard.answers[col][row] = e.target.value;
             };
 
-            // Hantera Enter-tryck för att "spara" (stänga rutan). Shift+Enter ger ny rad.
             const handleEnter = (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault(); // Förhindra ny rad
-                    e.target.blur(); // Ta bort fokus (rutan fälls ihop)
+                    e.preventDefault(); 
+                    e.target.blur(); 
                 }
             };
             qInput.onkeydown = handleEnter;
@@ -318,7 +313,6 @@ function renderEditGrid() {
             editorDiv.appendChild(aInput);
             cellWrapper.appendChild(editorDiv);
 
-            // Indikator för Media
             if (hasMedia) {
                 const indicator = document.createElement('div');
                 indicator.className = 'media-indicator';
@@ -334,7 +328,6 @@ function renderEditGrid() {
                 cellWrapper.appendChild(indicator);
             }
 
-            // Läge för att välja media (overlay)
             if (mediaMode) {
                 cellWrapper.classList.add('media-pick-mode');
                 const overlay = document.createElement('div');
@@ -384,7 +377,7 @@ function pickMedia(col, row, type) {
                 data: reader.result,
                 name: file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name
             };
-            mediaMode = null; // Exit media mode after picking
+            mediaMode = null; 
             renderEditGrid();
         };
         reader.readAsDataURL(file);
@@ -411,7 +404,6 @@ async function saveCurrentBoard() {
 }
 
 async function initiateGame(index) {
-    // Store board name reference, host.js reads from IndexedDB
     localStorage.setItem('jeopardyCurrentGame', boards[index].name);
     window.location.href = 'host.html';
 }
@@ -420,4 +412,24 @@ function showModal(title, text) {
     document.getElementById('generic-modal-title').textContent = title;
     document.getElementById('generic-modal-text').textContent = text;
     document.getElementById('generic-modal').style.display = 'flex';
+}
+
+// ----------------------------------------------------
+// AI-FUNKTIONER 
+// Detta gör att ai.js hittar export-funktionerna!
+// ----------------------------------------------------
+
+// Låter ai.js hämta spelet vi har öppet
+export function getCurrentBoardForAI() {
+    return currentBoard;
+}
+
+// Låter ai.js skicka in det nya genererade brädet och rita upp det
+export async function applyAiBoard(aiData) {
+    currentBoard = aiData;
+    await saveBoard(currentBoard);
+    boards = await loadAllBoards();
+    displayBoardList();
+    renderEditGrid(); // Ritar upp UI:t med nya datan
+    showModal('AI Klar!', 'Brädet har genererats och sparats!');
 }
