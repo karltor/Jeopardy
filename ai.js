@@ -165,11 +165,23 @@ Generera INGEN markdown (t.ex. \`\`\`json). Bara den rena JSON-koden.
 
 async function fetchAiModel(apiKey, systemInstruction, userText, modelName) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-    const requestBody = {
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents: [{ parts: [{ text: userText }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.8 }
-    };
+    
+    let requestBody;
+
+    // Gemma stödjer inte systemInstruction eller responseMimeType i Googles API
+    if (modelName.includes("gemma")) {
+        requestBody = {
+            contents: [{ parts: [{ text: `INSTRUKTION TILL AI:\n${systemInstruction}\n\nANVÄNDARENS PROMPT:\n${userText}` }] }],
+            generationConfig: { temperature: 0.8 }
+        };
+    } else {
+        // Gemini (Flash) stödjer full funktionalitet
+        requestBody = {
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            contents: [{ parts: [{ text: userText }] }],
+            generationConfig: { responseMimeType: "application/json", temperature: 0.8 }
+        };
+    }
 
     const response = await fetch(url, {
         method: "POST",
