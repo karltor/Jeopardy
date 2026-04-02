@@ -1,6 +1,7 @@
 import { db } from './firebase-config.js';
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { applyAiBoard, getCurrentBoardForAI } from './index.js';
+import { jsonrepair } from 'https://esm.sh/jsonrepair'; // Den magiska JSON-tvätten
 
 window.aiDrafts = []; // Lagrar alla lyckade returer för nuvarande session
 
@@ -104,7 +105,7 @@ async function runMultiModelGeneration(apiKey, systemPrompt, userText, isEditMod
     window.aiDrafts = []; // Nollställ tidigare utkast
     let isFirstResolved = false;
 
-    // Dina exakta 5 utvalda modeller
+    // Din exakta laguppställning
     const tasks = [
         { id: 'Flash 3 Preview', model: 'gemini-3-flash-preview', style: 'gemini' },
         { id: 'Flash 3.1 Lite', model: 'gemini-3.1-flash-lite-preview', style: 'gemini' },
@@ -120,7 +121,7 @@ async function runMultiModelGeneration(apiKey, systemPrompt, userText, isEditMod
             fetchAiModel(apiKey, systemPrompt, userText, task.model)
                 .then(response => {
                     try {
-                        const board = parseAiResponse(response);
+                        const board = parseAiResponse(response, task.id);
                         window.aiDrafts.push({ board: board, info: task });
                         
                         // Sortera: Gemini först, sedan Gemma
@@ -200,20 +201,15 @@ async function fetchAiModel(apiKey, systemInstruction, userText, modelName) {
     
     let requestBody;
 
-    // Hantering av alla open-weight Gemma-modeller
     if (modelName.includes("gemma")) {
         let finalPrompt = `INSTRUKTION TILL AI:\n${systemInstruction}\n\nANVÄNDARENS PROMPT:\n${userText}`;
-        
-        // Generell fix för Gemma (tvingar fram JSON utan yappande)
         finalPrompt += `\n\nABSOLUT KRAV: Du får INTE tänka högt eller förklara. Börja direkt med tecknet {`;
         
         requestBody = {
             contents: [{ parts: [{ text: finalPrompt }] }],
-            // Låg temperatur håller modellen fokuserad och tråkig (perfekt för kod)
             generationConfig: { temperature: 0.2 }
         };
     } else {
-        // Gemini (Flash) stödjer full funktionalitet
         requestBody = {
             systemInstruction: { parts: [{ text: systemInstruction }] },
             contents: [{ parts: [{ text: userText }] }],
@@ -231,7 +227,7 @@ async function fetchAiModel(apiKey, systemInstruction, userText, modelName) {
     return await response.json();
 }
 
-function parseAiResponse(data) {
+function parseAiResponse(data, modelId) {
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
         throw new Error("API-svar saknar innehåll.");
     }
@@ -239,7 +235,6 @@ function parseAiResponse(data) {
     const rawText = data.candidates[0].content.parts[0].text;
     
     try {
-        // Hitta den första '{' och den sista '}' i hela texten
         const firstBrace = rawText.indexOf('{');
         const lastBrace = rawText.lastIndexOf('}');
         
@@ -247,17 +242,20 @@ function parseAiResponse(data) {
             throw new Error("Kunde inte hitta några { } överhuvudtaget.");
         }
         
-        // Klipp ut det som förhoppningsvis är JSON-blocket
         let possibleJson = rawText.substring(firstBrace, lastBrace + 1);
-        
-        // Tvätta bort eventuella inbäddade markdown-taggar INUTI blocket
-        possibleJson = possibleJson.replace(/```json\n?/gi, '').replace(/```/g, '').trim();
+        let board;
 
-        // 🚨 SÄKERHETSNÄT: Om mallen tappade sista fästet (Trailing comma fix)
-        // Ibland lämnar de ett kommatecken sist i en array, vilket kraschar JSON.parse
-        possibleJson = possibleJson.replace(/,\s*([\]}])/g, '$1'); 
-        
-        const board = JSON.parse(possibleJson);
+        // Steg 1: Försök parsa normalt (snabbast, fungerar 95% av gångerna)
+        try {
+            let cleanAttempt = possibleJson.replace(/```json\n?/gi, '').replace(/```/g, '').trim();
+            board = JSON.parse(cleanAttempt);
+        } catch (initialError) {
+            // Steg 2: Om det kraschar skickar vi in jsonrepair!
+            console.log(`🚑 Syntaxfel upptäckt i ${modelId}, skickar in jsonrepair för att laga det...`);
+            const repairedJson = jsonrepair(possibleJson);
+            board = JSON.parse(repairedJson);
+            console.log(`✅ jsonrepair lyckades rädda datan från ${modelId}!`);
+        }
         
         // Verifiera strukturen
         if (!board.categories || board.categories.length !== 6 || !board.questions || board.questions.length !== 6) {
@@ -268,10 +266,8 @@ function parseAiResponse(data) {
         return board;
         
     } catch (e) {
-        // LOGGNING FÖR ATT FELSÖKA EXAKT VAD SOM GÅTT FEL
-        console.groupCollapsed(`❌ Trasig retur från AI`);
+        console.groupCollapsed(`❌ Kunde inte rädda returen från AI (${modelId})`);
         console.log("Felmeddelande:", e.message);
-        console.log("Texten vi försökte parsa:", rawText.substring(Math.max(0, rawText.indexOf('{') - 50), rawText.lastIndexOf('}') + 50)); 
         console.log("Hela råtexten:", rawText);
         console.groupEnd();
         
