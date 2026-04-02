@@ -108,8 +108,8 @@ async function runMultiModelGeneration(apiKey, systemPrompt, userText, isEditMod
     const tasks = [
         { id: 'Flash 3.1 (A)', model: 'gemini-3.1-flash-lite-preview', style: 'gemini' },
         { id: 'Flash 3.1 (B)', model: 'gemini-3.1-flash-lite-preview', style: 'gemini' },
-        { id: 'Gemma (A)', model: 'gemma-3-27b-it', style: 'gemma' },
-        { id: 'Gemma (B)', model: 'gemma-3-27b-it', style: 'gemma' },
+        { id: 'Gemma (A)', model: 'gemma-4-31b-it', style: 'gemma' },
+        { id: 'Gemma (B)', model: 'gemma-4-26b-a4b-it', style: 'gemma' },
         { id: 'Gemma (C)', model: 'gemma-3-27b-it', style: 'gemma' }
     ];
 
@@ -204,7 +204,7 @@ async function fetchAiModel(apiKey, systemInstruction, userText, modelName) {
     if (modelName.includes("gemma")) {
         requestBody = {
             contents: [{ parts: [{ text: `INSTRUKTION TILL AI:\n${systemInstruction}\n\nANVÄNDARENS PROMPT:\n${userText}` }] }],
-            generationConfig: { temperature: 0.8 }
+            generationConfig: { temperature: 1.0 }
         };
     } else {
         // Gemini (Flash) stödjer full funktionalitet
