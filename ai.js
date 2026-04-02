@@ -233,32 +233,42 @@ function parseAiResponse(data) {
     const rawText = data.candidates[0].content.parts[0].text;
     
     try {
-        // Tvätta strängen från markdown
-        let cleanText = rawText.replace(/```json\n?/gi, '').replace(/```/g, '').trim();
+        // Hitta den första '{' och den sista '}' i hela texten
+        const firstBrace = rawText.indexOf('{');
+        const lastBrace = rawText.lastIndexOf('}');
         
-        const firstBrace = cleanText.indexOf('{');
-        const lastBrace = cleanText.lastIndexOf('}');
-        
-        if (firstBrace !== -1 && lastBrace !== -1) {
-            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
-        } else {
-            throw new Error("Hittade inte start/slut-klamrar { }");
+        if (firstBrace === -1 || lastBrace === -1) {
+            throw new Error("Kunde inte hitta några { } överhuvudtaget.");
         }
         
-        const board = JSON.parse(cleanText);
+        // Klipp ut det som förhoppningsvis är JSON-blocket
+        let possibleJson = rawText.substring(firstBrace, lastBrace + 1);
+        
+        // Tvätta bort eventuella inbäddade markdown-taggar INUTI blocket
+        possibleJson = possibleJson.replace(/```json\n?/gi, '').replace(/```/g, '').trim();
+
+        // 🚨 SÄKERHETSNÄT: Om mallen tappade sista fästet (Trailing comma fix)
+        // Ibland lämnar de ett kommatecken sist i en array, vilket kraschar JSON.parse
+        possibleJson = possibleJson.replace(/,\s*([\]}])/g, '$1'); 
+        
+        const board = JSON.parse(possibleJson);
+        
+        // Verifiera strukturen
         if (!board.categories || board.categories.length !== 6 || !board.questions || board.questions.length !== 6) {
-            throw new Error("Fel antal kategorier eller frågor.");
+            throw new Error(`Strukturfel. Antal kategorier: ${board.categories ? board.categories.length : 'Saknas'}`);
         }
 
         board.media = {};
         return board;
+        
     } catch (e) {
-        // HÄR FÅNGAR VI RÅDATA OM DET KRASCHAR
-        console.groupCollapsed("❌ Trasig JSON från AI");
+        // LOGGNING FÖR ATT FELSÖKA EXAKT VAD SOM GÅTT FEL
+        console.groupCollapsed(`❌ Trasig retur från AI`);
         console.log("Felmeddelande:", e.message);
-        console.log("Råtext från AI:", rawText);
+        console.log("Texten vi försökte parsa:", rawText.substring(Math.max(0, rawText.indexOf('{') - 50), rawText.lastIndexOf('}') + 50)); 
+        console.log("Hela råtexten:", rawText);
         console.groupEnd();
         
-        throw e; // Kasta vidare felet så runMultiModelGeneration fångar det
+        throw e;
     }
 }
