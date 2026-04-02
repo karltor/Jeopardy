@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js';
-import { doc, getDoc } from "[https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js](https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js)";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { applyAiBoard, getCurrentBoardForAI } from './index.js';
 
 window.aiDrafts = []; // Lagrar alla lyckade returer för nuvarande session
