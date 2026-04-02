@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("Sidan laddad, påbörjar initiering...");
     
     try {
-        // 1. Ladda lokala bräden
         boards = await loadAllBoards();
         console.log("Lokala bräden laddade:", boards.length);
     } catch (e) {
@@ -19,14 +18,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         boards = [];
     }
 
-    // 2. Kolla efter delningslänk (VIKTIGT: Vi väntar på att denna blir klar)
     await checkForSharedBoard(); 
     
-    // 3. Rita upp gränssnittet
     renderSidebar();
     renderMainContent(); 
-    
-    // 4. Lyssna på knapptryck
     setupGlobalListeners();
 });
 
@@ -53,10 +48,9 @@ function renderSidebar() {
         
         btn.className = `w-full text-left px-4 py-3 flex justify-between items-center rounded-lg transition-colors border ${isActive ? 'bg-amber-50 border-amber-200 text-slate-900 font-bold' : 'bg-transparent border-transparent text-slate-600 hover:bg-slate-100'}`;
         
-        // SÄKER RENDERING: Skapa element istället för innerHTML-sträng
         const nameSpan = document.createElement('span');
         nameSpan.className = "truncate pr-2";
-        nameSpan.textContent = board.name; // <--- Säkert!
+        nameSpan.textContent = board.name; 
 
         const countSpan = document.createElement('span');
         countSpan.className = `text-xs ${isActive ? 'text-amber-600' : 'text-slate-400'} font-bold flex-shrink-0`;
@@ -65,7 +59,6 @@ function renderSidebar() {
         btn.appendChild(nameSpan);
         btn.appendChild(countSpan);
         
-        // Uppdaterat: Manuellt klick i menyn RENSAR drafts
         btn.onclick = () => window.selectBoard(index, true);
         list.appendChild(btn);
     });
@@ -73,13 +66,16 @@ function renderSidebar() {
 
 window.selectBoard = (index, clearDrafts = true) => {
     console.log("Valde bräde index:", index);
+    
+    // Auto-bekräfta om man navigerar iväg utan att ha bekräftat ett draft
+    if (clearDrafts && window.aiDrafts && window.aiDrafts.length > 0) {
+        window.aiDrafts = [];
+        window.activeDraftIndex = 0;
+        showToast("Ditt senast granskade alternativ valdes automatiskt.", false);
+    }
+
     currentBoardIndex = index;
     editModeActive = false;
-    
-    // Rensa BARA drafts om vi säger åt den att göra det (manuellt klick)
-    if (clearDrafts) {
-        window.aiDrafts = []; 
-    }
     
     renderSidebar();
     renderMainContent();
@@ -89,7 +85,6 @@ function renderMainContent() {
     const container = document.getElementById('mainContent');
     if (!container) return;
     
-    // Rensa containern helt
     container.innerHTML = '';
 
     if (currentBoardIndex === -1 || !boards[currentBoardIndex]) {
@@ -108,7 +103,6 @@ function renderMainContent() {
         renderEditMode(container, board);
     } else {
         renderViewMode(container, board);
-        // Uppdaterat: Kalla på AI Drafts om vi är i View Mode och det finns ett spelbräde
         setTimeout(() => {
             if(document.getElementById('draftContainer')) window.renderDraftSelector();
         }, 50);
@@ -116,7 +110,6 @@ function renderMainContent() {
 }
 
 function renderViewMode(container, board) {
-    // 1. Skapa Header-sektionen säkert
     const wrapper = document.createElement('div');
     wrapper.className = "max-w-7xl mx-auto";
 
@@ -126,33 +119,40 @@ function renderViewMode(container, board) {
     const titleInfo = document.createElement('div');
     const h1 = document.createElement('h1');
     h1.className = "text-4xl font-black text-slate-800 mb-2";
-    h1.textContent = board.name; // <--- Säkert!
+    h1.textContent = board.name; 
     const subP = document.createElement('p');
     subP.className = "text-slate-500 font-medium";
     subP.textContent = "30 frågor i detta paket";
     titleInfo.append(h1, subP);
 
-    // Knappar (vi kan använda innerHTML här för ikoner eftersom texten är statisk/hårdkodad)
+    // Dölj vanliga action-knappar om vi har obekräftade AI-utkast
     const btnGroup = document.createElement('div');
     btnGroup.className = "flex gap-2";
-    btnGroup.innerHTML = `
-        <button onclick="handleAiAuthEdit()" class="px-3 py-2 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors flex items-center gap-1 shadow-sm">✨ Redigera med AI</button>
-        <button onclick="deleteCurrentBoard()" class="px-3 py-2 text-sm font-bold text-red-600 bg-white border border-slate-200 hover:bg-red-50 rounded-md transition-colors shadow-sm">Radera</button>
-        <button onclick="openShareModal()" class="px-3 py-2 text-sm font-bold text-blue-600 bg-white border border-slate-200 hover:bg-blue-50 rounded-md transition-colors shadow-sm">Dela</button>
-        <button onclick="toggleEditMode()" class="px-3 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md transition-colors shadow-sm">Redigera Manuellt</button>
-        <button onclick="startGame()" class="px-6 py-2 text-sm font-black text-slate-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors flex items-center gap-2 shadow-sm">▶ Starta Spel</button>
-    `;
+    
+    const hasDrafts = window.aiDrafts && window.aiDrafts.length > 0;
+
+    if (hasDrafts) {
+        btnGroup.innerHTML = `
+            <span class="text-sm font-bold text-indigo-600 flex items-center mr-2 animate-pulse">Du förhandsgranskar just nu...</span>
+            <button onclick="confirmDraftSelection()" class="px-6 py-2 text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-md transition-transform hover:scale-105">✅ Välj & Spara detta alternativ</button>
+        `;
+    } else {
+        btnGroup.innerHTML = `
+            <button onclick="deleteCurrentBoard()" class="px-3 py-2 text-sm font-bold text-red-600 bg-white border border-slate-200 hover:bg-red-50 rounded-md transition-colors shadow-sm">Radera</button>
+            <button onclick="openShareModal()" class="px-3 py-2 text-sm font-bold text-blue-600 bg-white border border-slate-200 hover:bg-blue-50 rounded-md transition-colors shadow-sm">Dela</button>
+            <button onclick="handleAiAuthEdit()" class="px-3 py-2 text-sm font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-md transition-colors flex items-center gap-1 shadow-sm">✨ Redigera med AI</button>
+            <button onclick="toggleEditMode()" class="px-3 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-md transition-colors shadow-sm">Redigera Manuellt</button>
+            <button onclick="startGame()" class="px-6 py-2 text-sm font-black text-slate-900 bg-amber-400 hover:bg-amber-500 rounded-md transition-colors flex items-center gap-2 shadow-sm">▶ Starta Spel</button>
+        `;
+    }
 
     header.append(titleInfo, btnGroup);
     wrapper.appendChild(header);
 
-    // --- NYTT: Container för AI-alternativ (Drafts) ---
     const draftContainer = document.createElement('div');
     draftContainer.id = 'draftContainer';
     wrapper.appendChild(draftContainer);
-    // --------------------------------------------------
 
-    // 2. Skapa Grid-systemet säkert
     const grid = document.createElement('div');
     grid.className = "grid grid-cols-6 gap-2 mt-6";
 
@@ -162,7 +162,7 @@ function renderViewMode(container, board) {
 
         const catHead = document.createElement('div');
         catHead.className = "bg-blue-900 text-white font-bold p-3 text-center text-sm rounded-md shadow-sm h-14 flex items-center justify-center leading-tight uppercase tracking-tighter";
-        catHead.textContent = cat || '???'; // <--- Säkert!
+        catHead.textContent = cat || '???'; 
         colDiv.appendChild(catHead);
 
         for(let row = 0; row < 5; row++) {
@@ -174,13 +174,13 @@ function renderViewMode(container, board) {
             
             const qSpan = document.createElement('span');
             qSpan.className = "line-clamp-5 leading-tight text-slate-700";
-            qSpan.textContent = q || '-'; // <--- Säkert!
+            qSpan.textContent = q || '-'; 
             cell.appendChild(qSpan);
 
             if (a) {
                 const aDiv = document.createElement('div');
                 aDiv.className = "absolute inset-0 bg-emerald-100 text-emerald-900 font-bold opacity-0 group-hover:opacity-100 p-2 text-[10px] flex items-center justify-center transition-opacity z-10 rounded text-center break-words leading-none";
-                aDiv.textContent = a; // <--- Säkert!
+                aDiv.textContent = a; 
                 cell.appendChild(aDiv);
             }
             colDiv.appendChild(cell);
@@ -193,18 +193,17 @@ function renderViewMode(container, board) {
 }
 
 function renderEditMode(container, board) {
-    container.innerHTML = ''; // Rensa först
+    container.innerHTML = ''; 
 
     const wrapper = document.createElement('div');
     wrapper.className = "max-w-7xl mx-auto";
 
-    // Header sektion
     const header = document.createElement('div');
     header.className = "flex items-center justify-between mb-6";
 
     const h2 = document.createElement('h2');
     h2.className = "text-2xl font-black text-slate-800";
-    h2.textContent = `Redigerar manuellt: ${board.name}`; // SÄKERT
+    h2.textContent = `Redigerar manuellt: ${board.name}`; 
 
     const btnGroup = document.createElement('div');
     btnGroup.className = "flex gap-2";
@@ -215,11 +214,10 @@ function renderEditMode(container, board) {
 
     header.append(h2, btnGroup);
 
-    // Namn-input
     const nameInp = document.createElement('input');
     nameInp.type = "text";
     nameInp.id = "editBoardName";
-    nameInp.value = board.name; // SÄKERT (använder .value istället för attribut-sträng)
+    nameInp.value = board.name; 
     nameInp.className = "w-full text-2xl font-bold p-3 mb-6 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none";
 
     const grid = document.createElement('div');
@@ -229,7 +227,6 @@ function renderEditMode(container, board) {
     wrapper.append(header, nameInp, grid);
     container.appendChild(wrapper);
 
-    // Rendera kategorier och frågor
     board.categories.forEach((cat, i) => {
         const inp = document.createElement('input');
         inp.value = cat; 
@@ -380,7 +377,6 @@ window.importBoard = async () => {
     } catch (e) { showToast('Ogiltig JSON-kod.', true); }
 };
 
-// --- KRITISK FIX FÖR DELNINGSLÄNKAR ---
 async function checkForSharedBoard() {
     const params = new URLSearchParams(window.location.search);
     const boardId = params.get('board');
@@ -394,7 +390,6 @@ async function checkForSharedBoard() {
 
         if (docSnap.exists()) {
             const sharedBoard = docSnap.data();
-            console.log("Hämtade bräde från Firestore:", sharedBoard.name);
             
             const boardData = {
                 name: sharedBoard.name,
@@ -422,23 +417,29 @@ async function checkForSharedBoard() {
             await saveBoard(boards[currentBoardIndex]);
             showToast(`Brädet "${boardData.name}" har importerats!`, false);
         } else {
-            console.warn("Dokumentet hittades inte i Firestore");
             showToast('Länken är ogiltig eller brädet har raderats.', true);
         }
     } catch (e) {
-        console.error('Fel vid hämtning av delat bräde:', e);
         showToast('Kunde inte hämta det delade brädet.', true);
     }
     window.history.replaceState({}, document.title, window.location.pathname);
 }
 
 // ==========================================
-// AI & AUTENTISERING
+// AI & AUTENTISERING & EVENT LISTENERS
 // ==========================================
 
 function setupGlobalListeners() {
     document.getElementById('btnAuthAi')?.addEventListener('click', () => handleAiAuth(false));
     document.getElementById('btnImport')?.addEventListener('click', () => window.openImportModal());
+
+    // Om man försöker stänga fliken under Draft Mode
+    window.addEventListener('beforeunload', (e) => {
+        if (window.aiDrafts && window.aiDrafts.length > 0) {
+            e.preventDefault();
+            e.returnValue = 'Du har obekräftade AI-alternativ. Om du stänger nu sparas det alternativ du för tillfället kollar på.';
+        }
+    });
 }
 
 window.handleAiAuthEdit = () => handleAiAuth(true);
@@ -485,50 +486,63 @@ export async function applyAiBoard(aiData, overwriteCurrent = false) {
     await saveBoard(boards[currentBoardIndex]);
     boards = await loadAllBoards();
     
-    // Uppdaterat: false säger åt den att INTE rensa drafts när vi precis fått dem
+    // Säkerställ att activeDraftIndex är satt när det första brädet laddas in
+    if (typeof window.activeDraftIndex === 'undefined') {
+        window.activeDraftIndex = 0;
+    }
+
+    // False = rensa INTE drafts, vi är ju mitt i draft mode nu!
     window.selectBoard(currentBoardIndex, false); 
-    
-    showToast("Brädet är redo!", false);
 }
 
 // ==========================================
 // AI DRAFT SELECTOR
 // ==========================================
+
+window.confirmDraftSelection = () => {
+    window.aiDrafts = [];
+    window.activeDraftIndex = 0;
+    showToast("Alternativ valt och sparat!", false);
+    renderMainContent(); // Detta kommer ta fram de normala knapparna igen
+};
+
 window.renderDraftSelector = () => {
     const container = document.getElementById('draftContainer');
-    if (!container || !window.aiDrafts || window.aiDrafts.length < 2) return;
+    if (!container || !window.aiDrafts || window.aiDrafts.length === 0) {
+        if(container) container.innerHTML = '';
+        return;
+    }
 
-    // Rensa tidigare knappar
     container.innerHTML = '';
     
     const banner = document.createElement('div');
-    banner.className = "bg-indigo-50 border border-indigo-100 rounded-lg p-3 mt-4 mb-2 flex items-center gap-4 flex-wrap shadow-inner";
+    banner.className = "bg-indigo-50 border border-indigo-200 rounded-lg p-3 mt-4 mb-2 flex items-center gap-3 flex-wrap shadow-sm";
     
     const label = document.createElement('span');
     label.className = "text-sm font-bold text-indigo-800 flex items-center gap-2";
-    label.innerHTML = "✨ Fler AI-alternativ genererades:";
+    label.innerHTML = "✨ Genererade AI-alternativ:";
     banner.appendChild(label);
 
     window.aiDrafts.forEach((draft, idx) => {
+        const isActive = (window.activeDraftIndex === idx);
         const btn = document.createElement('button');
         
-        // Styla Flash 3.1 annorlunda än Gemma
-        if (draft.info.style === 'gemini') {
-            btn.className = "px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm transition";
+        // Stilren design, ingen modell-info
+        if (isActive) {
+            btn.className = "px-4 py-2 text-sm font-black text-white bg-indigo-600 rounded-md shadow-md ring-2 ring-indigo-400 ring-offset-1 transition-all";
         } else {
-            btn.className = "px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-md shadow-sm transition";
+            btn.className = "px-4 py-2 text-sm font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-md shadow-sm transition-all";
         }
         
-        btn.textContent = `Alternativ ${idx + 1} (${draft.info.id})`;
+        btn.textContent = `Alternativ ${idx + 1}`;
         
         btn.onclick = async () => {
-            // Skriv över nuvarande bräde med detta utkast
-            const boardToApply = draft.board;
-            boards[currentBoardIndex] = boardToApply;
+            if (window.activeDraftIndex === idx) return; // Gör inget om det redan är aktivt
+            
+            window.activeDraftIndex = idx;
+            boards[currentBoardIndex] = draft.board;
             await saveBoard(boards[currentBoardIndex]);
-            showToast("Alternativ laddat!", false);
-            renderMainContent(); // Rendera om (drafts stannar kvar tills vi stänger)
-            window.renderDraftSelector(); // Rita om knapparna
+            renderMainContent(); // Ritar om hela rasket så det nya brädet + aktiva stilen visas
         };
 
         banner.appendChild(btn);
