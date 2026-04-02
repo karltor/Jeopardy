@@ -477,16 +477,24 @@ window.showToast = function(message, isError = false) {
 export function getCurrentBoardForAI() { return boards[currentBoardIndex]; }
 
 export async function applyAiBoard(aiData, overwriteCurrent = false) {
+    const targetName = aiData.name; // Spara namnet AI:n gav brädet
+
     if (!overwriteCurrent || currentBoardIndex === -1) {
         boards.push(aiData);
-        currentBoardIndex = boards.length - 1;
     } else {
         boards[currentBoardIndex] = aiData; 
     }
-    await saveBoard(boards[currentBoardIndex]);
+    
+    // Spara ner
+    await saveBoard(aiData);
+    
+    // Ladda om listan (som nu sorteras i bokstavsordning av databasen!)
     boards = await loadAllBoards();
     
-    // Säkerställ att activeDraftIndex är satt när det första brädet laddas in
+    // Leta upp det nya brädets index baserat på namnet
+    currentBoardIndex = boards.findIndex(b => b.name === targetName);
+    if (currentBoardIndex === -1) currentBoardIndex = 0; // Fallback
+    
     if (typeof window.activeDraftIndex === 'undefined') {
         window.activeDraftIndex = 0;
     }
