@@ -200,11 +200,22 @@ async function fetchAiModel(apiKey, systemInstruction, userText, modelName) {
     
     let requestBody;
 
-    // Gemma stödjer inte systemInstruction eller responseMimeType i Googles API
+    // Hantering av alla open-weight Gemma-modeller
     if (modelName.includes("gemma")) {
+        let finalPrompt = `INSTRUKTION TILL AI:\n${systemInstruction}\n\nANVÄNDARENS PROMPT:\n${userText}`;
+        
+        // Specifik fix för Gemma-4:s inbyggda "Thinking mode"
+        if (modelName.includes("gemma-4")) {
+            finalPrompt += `\n\nABSOLUT KRAV: Du MÅSTE omedelbart stänga din tankekanal. Börja hela ditt svar exakt med följande tecken:\n<|channel>thought\n<channel|>\n\nDärefter skriver du din JSON-kod.`;
+        } else {
+            // Generell fix för äldre Gemma (t.ex. Gemma 3)
+            finalPrompt += `\n\nABSOLUT KRAV: Du får INTE tänka högt eller förklara. Börja direkt med tecknet {`;
+        }
+
         requestBody = {
-            contents: [{ parts: [{ text: `INSTRUKTION TILL AI:\n${systemInstruction}\n\nANVÄNDARENS PROMPT:\n${userText}` }] }],
-            generationConfig: { temperature: 1.0 }
+            contents: [{ parts: [{ text: finalPrompt }] }],
+            // Låg temperatur håller modellen fokuserad och tråkig (perfekt för kod)
+            generationConfig: { temperature: 0.2 }
         };
     } else {
         // Gemini (Flash) stödjer full funktionalitet
