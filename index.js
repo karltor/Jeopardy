@@ -6,6 +6,7 @@ import { loadAllBoards, saveBoard, deleteBoard, getBoard, boardHasMedia } from '
 let boards = [];
 let currentBoardIndex = -1;
 let editModeActive = false;
+window.originalBoardBackup = null; // Sparar originalet ifall vi vill ångra en AI-redigering
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("Sidan laddad, påbörjar initiering...");
@@ -65,13 +66,9 @@ function renderSidebar() {
 }
 
 window.selectBoard = (index, clearDrafts = true) => {
-    console.log("Valde bräde index:", index);
-    
-    // Auto-bekräfta om man navigerar iväg utan att ha bekräftat ett draft
+    // Om användaren klickar i menyn medan AI-förslag granskas -> Avbryt automatiskt
     if (clearDrafts && window.aiDrafts && window.aiDrafts.length > 0) {
-        window.aiDrafts = [];
-        window.activeDraftIndex = 0;
-        showToast("Ditt senast granskade alternativ valdes automatiskt.", false);
+        window.cancelDraftSelection(true); // true = tyst avbrott
     }
 
     currentBoardIndex = index;
@@ -125,16 +122,17 @@ function renderViewMode(container, board) {
     subP.textContent = "30 frågor i detta paket";
     titleInfo.append(h1, subP);
 
-    // Dölj vanliga action-knappar om vi har obekräftade AI-utkast
     const btnGroup = document.createElement('div');
     btnGroup.className = "flex gap-2";
     
     const hasDrafts = window.aiDrafts && window.aiDrafts.length > 0;
 
+    // Byter ut knapparna när vi granskar AI-förslag
     if (hasDrafts) {
         btnGroup.innerHTML = `
-            <span class="text-sm font-bold text-indigo-600 flex items-center mr-2 animate-pulse">Du förhandsgranskar just nu...</span>
-            <button onclick="confirmDraftSelection()" class="px-6 py-2 text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-md transition-transform hover:scale-105">✅ Välj & Spara detta alternativ</button>
+            <span class="text-sm font-bold text-indigo-600 flex items-center mr-4 animate-pulse">Du granskar just nu AI-förslag...</span>
+            <button onclick="cancelDraftSelection()" class="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 rounded-md shadow-sm transition">❌ Avbryt</button>
+            <button onclick="confirmDraftSelection()" class="px-6 py-2 text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-md transition-transform hover:scale-105">✅ Spara detta</button>
         `;
     } else {
         btnGroup.innerHTML = `
@@ -433,11 +431,10 @@ function setupGlobalListeners() {
     document.getElementById('btnAuthAi')?.addEventListener('click', () => handleAiAuth(false));
     document.getElementById('btnImport')?.addEventListener('click', () => window.openImportModal());
 
-    // Om man försöker stänga fliken under Draft Mode
     window.addEventListener('beforeunload', (e) => {
         if (window.aiDrafts && window.aiDrafts.length > 0) {
             e.preventDefault();
-            e.returnValue = 'Du har obekräftade AI-alternativ. Om du stänger nu sparas det alternativ du för tillfället kollar på.';
+            e.returnValue = 'Du har obekräftade AI-alternativ. Ändringarna sparas inte om du lämnar nu.';
         }
     });
 }
@@ -476,42 +473,77 @@ window.showToast = function(message, isError = false) {
 
 export function getCurrentBoardForAI() { return boards[currentBoardIndex]; }
 
-export async function applyAiBoard(aiData, overwriteCurrent = false) {
-    const targetName = aiData.name; // Spara namnet AI:n gav brädet
+// ==========================================
+// AI DRAFT HANTERING
+// ==========================================
 
-    if (!overwriteCurrent || currentBoardIndex === -1) {
-        boards.push(aiData);
-    } else {
+export async function applyAiBoard(aiData, overwriteCurrent = false) {
+    // Spara en backup av originalet ifall användaren ångrar sig
+    if (overwriteCurrent && currentBoardIndex !== -1) {
+        if (!window.originalBoardBackup) {
+            window.originalBoardBackup = JSON.parse(JSON.stringify(boards[currentBoardIndex]));
+        }
+        // TVINGA SAMMA NAMN: Detta förhindrar att AI:n råkar skapa dubbletter i databasen
+        aiData.name = window.originalBoardBackup.name;
         boards[currentBoardIndex] = aiData; 
+    } else {
+        // Nytt bräde som AI skapat
+        if (!window.originalBoardBackup) {
+            window.originalBoardBackup = "NEW"; 
+            boards.push(aiData);
+            currentBoardIndex = boards.length - 1;
+        } else if (window.originalBoardBackup === "NEW") {
+            boards[currentBoardIndex] = aiData; // Uppdaterar bara arbetsminnet om vi växlar alternativ
+        }
     }
-    
-    // Spara ner
-    await saveBoard(aiData);
-    
-    // Ladda om listan (som nu sorteras i bokstavsordning av databasen!)
-    boards = await loadAllBoards();
-    
-    // Leta upp det nya brädets index baserat på namnet
-    currentBoardIndex = boards.findIndex(b => b.name === targetName);
-    if (currentBoardIndex === -1) currentBoardIndex = 0; // Fallback
     
     if (typeof window.activeDraftIndex === 'undefined') {
         window.activeDraftIndex = 0;
     }
 
-    // False = rensa INTE drafts, vi är ju mitt i draft mode nu!
+    // False = rensa INTE drafts. VIKTIGT: Vi sparar inte till databasen här längre! Det sker vid bekräftelse.
     window.selectBoard(currentBoardIndex, false); 
 }
 
-// ==========================================
-// AI DRAFT SELECTOR
-// ==========================================
+window.confirmDraftSelection = async () => {
+    const boardToSave = boards[currentBoardIndex];
+    
+    // NU sparar vi till databasen!
+    await saveBoard(boardToSave);
+    boards = await loadAllBoards(); 
+    
+    // Uppdatera pekaren ifall sorteringen ändrades (gäller framförallt nya bräden)
+    currentBoardIndex = boards.findIndex(b => b.name === boardToSave.name);
+    if(currentBoardIndex === -1) currentBoardIndex = 0;
 
-window.confirmDraftSelection = () => {
+    // Nollställ draft-läget
     window.aiDrafts = [];
     window.activeDraftIndex = 0;
+    window.originalBoardBackup = null;
+    
     showToast("Alternativ valt och sparat!", false);
-    renderMainContent(); // Detta kommer ta fram de normala knapparna igen
+    renderSidebar();
+    renderMainContent(); 
+};
+
+window.cancelDraftSelection = (isSilent = false) => {
+    // Återställ antingen det gamla brädet, eller ta bort det nya helt från arrayen
+    if (window.originalBoardBackup && window.originalBoardBackup !== "NEW") {
+        boards[currentBoardIndex] = window.originalBoardBackup;
+    } else if (window.originalBoardBackup === "NEW") {
+        boards.splice(currentBoardIndex, 1);
+        currentBoardIndex = boards.length > 0 ? 0 : -1;
+    }
+    
+    window.aiDrafts = [];
+    window.activeDraftIndex = 0;
+    window.originalBoardBackup = null;
+    
+    if (!isSilent) {
+        showToast("AI-förslagen avfärdades.", false);
+        renderSidebar();
+        renderMainContent();
+    }
 };
 
 window.renderDraftSelector = () => {
@@ -535,7 +567,6 @@ window.renderDraftSelector = () => {
         const isActive = (window.activeDraftIndex === idx);
         const btn = document.createElement('button');
         
-        // Stilren design, ingen modell-info
         if (isActive) {
             btn.className = "px-4 py-2 text-sm font-black text-white bg-indigo-600 rounded-md shadow-md ring-2 ring-indigo-400 ring-offset-1 transition-all";
         } else {
@@ -544,13 +575,19 @@ window.renderDraftSelector = () => {
         
         btn.textContent = `Alternativ ${idx + 1}`;
         
-        btn.onclick = async () => {
-            if (window.activeDraftIndex === idx) return; // Gör inget om det redan är aktivt
+        btn.onclick = () => {
+            if (window.activeDraftIndex === idx) return; 
             
             window.activeDraftIndex = idx;
-            boards[currentBoardIndex] = draft.board;
-            await saveBoard(boards[currentBoardIndex]);
-            renderMainContent(); // Ritar om hela rasket så det nya brädet + aktiva stilen visas
+            
+            // Uppdatera brädet med detta utkast (och tvinga fram rätt namn om vi redigerar)
+            const draftBoard = JSON.parse(JSON.stringify(draft.board));
+            if (window.originalBoardBackup !== "NEW") {
+                draftBoard.name = window.originalBoardBackup.name;
+            }
+            boards[currentBoardIndex] = draftBoard;
+            
+            renderMainContent(); 
         };
 
         banner.appendChild(btn);
