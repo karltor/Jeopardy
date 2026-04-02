@@ -53,17 +53,32 @@ window.modifyAiBoard = async () => {
     try {
         const apiKey = await getApiKey();
         const systemPrompt = `Du är en AI-assistent som uteslutande bygger och REDIGERAR spelbräden till Jeopardy på svenska.
-Användaren kommer att skicka in sitt nuvarande spelbräde i JSON-format, följt av en instruktion på vad som ska ändras.
-Din uppgift är att applicera ändringarna och returnera ETT GILTIGT JSON-OBJEKT som representerar det HELA uppdaterade brädet.
-Behåll samma namn, om inte användaren explicit ber dig byta det.
-Strukturen MÅSTE exakt vara:
-{
-  "name": "Ett passande namn",
-  "categories": ["Kat 1", "Kat 2", "Kat 3", "Kat 4", "Kat 5", "Kat 6"],
-  "questions": [ [...5 st], [...5 st], [...5 st], [...5 st], [...5 st], [...5 st] ],
-  "answers": [ [...5 st], [...5 st], [...5 st], [...5 st], [...5 st], [...5 st] ]
-}
-Generera INGEN markdown (t.ex. \`\`\`json). Bara den rena JSON-koden.`;
+        Användaren kommer att skicka in sitt nuvarande spelbräde i JSON-format, följt av en instruktion på vad som ska ändras.
+        Din uppgift är att applicera ändringarna och returnera ETT GILTIGT JSON-OBJEKT som representerar det HELA uppdaterade brädet.
+        Behåll samma namn, om inte användaren explicit ber dig byta det.
+        Generera INGEN markdown (t.ex. \`\`\`json). Bara den rena JSON-koden.
+        
+        Strukturen MÅSTE ha exakt 6 listor inuti "questions" och "answers":
+        {
+          "name": "Ett passande namn",
+          "categories": ["Kat 1", "Kat 2", "Kat 3", "Kat 4", "Kat 5", "Kat 6"],
+          "questions": [
+            ["F1", "F2", "F3", "F4", "F5"],
+            ["F1", "F2", "F3", "F4", "F5"],
+            ["F1", "F2", "F3", "F4", "F5"],
+            ["F1", "F2", "F3", "F4", "F5"],
+            ["F1", "F2", "F3", "F4", "F5"],
+            ["F1", "F2", "F3", "F4", "F5"]
+          ],
+          "answers": [
+            ["S1", "S2", "S3", "S4", "S5"],
+            ["S1", "S2", "S3", "S4", "S5"],
+            ["S1", "S2", "S3", "S4", "S5"],
+            ["S1", "S2", "S3", "S4", "S5"],
+            ["S1", "S2", "S3", "S4", "S5"],
+            ["S1", "S2", "S3", "S4", "S5"]
+          ]
+        }`;
 
         const userContent = `Här är mitt nuvarande bräde:\n${JSON.stringify({
             name: currentBoard.name, categories: currentBoard.categories, 
@@ -153,13 +168,30 @@ async function getApiKey() {
 function getSystemPrompt() {
     return `Du är en AI-assistent som uteslutande bygger spelbräden till Jeopardy på svenska.
 Din enda uppgift är returnera ETT GILTIGT JSON-OBJEKT.
-MÅSTE ha exakt 6 kategorier och 5 frågor/svar per kategori.
+MÅSTE ha exakt 6 kategorier och exakt 5 frågor/svar per kategori.
 Generera INGEN markdown (t.ex. \`\`\`json). Bara den rena JSON-koden.
+
+VIKTIGT: "questions" och "answers" MÅSTE innehålla exakt 6 stycken listor (en för varje kategori).
+
 {
   "name": "Ett passande namn",
-  "categories": ["Kat 1", "Kat 2", "Kat 3", "Kat 4", "Kat 5", "Kat 6"],
-  "questions": [ [...5 st], [...5 st], [...5 st], [...5 st], [...5 st], [...5 st] ],
-  "answers": [ [...5 st], [...5 st], [...5 st], [...5 st], [...5 st], [...5 st] ]
+  "categories": ["Kategori 1", "Kategori 2", "Kategori 3", "Kategori 4", "Kategori 5", "Kategori 6"],
+  "questions": [
+    ["Fråga 100", "Fråga 200", "Fråga 300", "Fråga 400", "Fråga 500"],
+    ["Fråga 100", "Fråga 200", "Fråga 300", "Fråga 400", "Fråga 500"],
+    ["Fråga 100", "Fråga 200", "Fråga 300", "Fråga 400", "Fråga 500"],
+    ["Fråga 100", "Fråga 200", "Fråga 300", "Fråga 400", "Fråga 500"],
+    ["Fråga 100", "Fråga 200", "Fråga 300", "Fråga 400", "Fråga 500"],
+    ["Fråga 100", "Fråga 200", "Fråga 300", "Fråga 400", "Fråga 500"]
+  ],
+  "answers": [
+    ["Svar 100", "Svar 200", "Svar 300", "Svar 400", "Svar 500"],
+    ["Svar 100", "Svar 200", "Svar 300", "Svar 400", "Svar 500"],
+    ["Svar 100", "Svar 200", "Svar 300", "Svar 400", "Svar 500"],
+    ["Svar 100", "Svar 200", "Svar 300", "Svar 400", "Svar 500"],
+    ["Svar 100", "Svar 200", "Svar 300", "Svar 400", "Svar 500"],
+    ["Svar 100", "Svar 200", "Svar 300", "Svar 400", "Svar 500"]
+  ]
 }`;
 }
 
