@@ -104,13 +104,13 @@ async function runMultiModelGeneration(apiKey, systemPrompt, userText, isEditMod
     window.aiDrafts = []; // Nollställ tidigare utkast
     let isFirstResolved = false;
 
-    // Vi definierar våra 5 "löpare"
+    // Dina exakta 5 utvalda modeller
     const tasks = [
-        { id: 'Flash 3.1 (A)', model: 'gemini-3.1-flash-lite-preview', style: 'gemini' },
-        { id: 'Flash 3.1 (B)', model: 'gemini-3.1-flash-lite-preview', style: 'gemini' },
-        { id: 'Gemma (A)', model: 'gemma-4-31b-it', style: 'gemma' },
-        { id: 'Gemma (B)', model: 'gemma-4-26b-a4b-it', style: 'gemma' },
-        { id: 'Gemma (C)', model: 'gemma-3-27b-it', style: 'gemma' }
+        { id: 'Flash 3 Preview', model: 'gemini-3-flash-preview', style: 'gemini' },
+        { id: 'Flash 3.1 Lite', model: 'gemini-3.1-flash-lite-preview', style: 'gemini' },
+        { id: 'Flash 2.5', model: 'gemini-2.5-flash', style: 'gemini' },
+        { id: 'Gemma 3 (27B)', model: 'gemma-3-27b-it', style: 'gemma' },
+        { id: 'Gemma 3 (12B)', model: 'gemma-3-12b-it', style: 'gemma' }
     ];
 
     return new Promise((resolve, reject) => {
@@ -204,14 +204,9 @@ async function fetchAiModel(apiKey, systemInstruction, userText, modelName) {
     if (modelName.includes("gemma")) {
         let finalPrompt = `INSTRUKTION TILL AI:\n${systemInstruction}\n\nANVÄNDARENS PROMPT:\n${userText}`;
         
-        // Specifik fix för Gemma-4:s inbyggda "Thinking mode"
-        if (modelName.includes("gemma-4")) {
-            finalPrompt += `\n\nABSOLUT KRAV: Du MÅSTE omedelbart stänga din tankekanal. Börja hela ditt svar exakt med följande tecken:\n<|channel>thought\n<channel|>\n\nDärefter skriver du din JSON-kod.`;
-        } else {
-            // Generell fix för äldre Gemma (t.ex. Gemma 3)
-            finalPrompt += `\n\nABSOLUT KRAV: Du får INTE tänka högt eller förklara. Börja direkt med tecknet {`;
-        }
-
+        // Generell fix för Gemma (tvingar fram JSON utan yappande)
+        finalPrompt += `\n\nABSOLUT KRAV: Du får INTE tänka högt eller förklara. Börja direkt med tecknet {`;
+        
         requestBody = {
             contents: [{ parts: [{ text: finalPrompt }] }],
             // Låg temperatur håller modellen fokuserad och tråkig (perfekt för kod)
