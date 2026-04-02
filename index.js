@@ -74,6 +74,7 @@ function selectBoard(index) {
     console.log("Valde bräde index:", index);
     currentBoardIndex = index;
     editModeActive = false;
+    window.aiDrafts = []
     renderSidebar();
     renderMainContent();
 }
@@ -134,6 +135,12 @@ function renderViewMode(container, board) {
 
     header.append(titleInfo, btnGroup);
     wrapper.appendChild(header);
+
+    // --- NYTT: Container för AI-alternativ (Drafts) ---
+    const draftContainer = document.createElement('div');
+    draftContainer.id = 'draftContainer';
+    wrapper.appendChild(draftContainer);
+    // --------------------------------------------------
 
     // 2. Skapa Grid-systemet säkert
     const grid = document.createElement('div');
@@ -468,4 +475,58 @@ export async function applyAiBoard(aiData, overwriteCurrent = false) {
     boards = await loadAllBoards();
     selectBoard(currentBoardIndex); 
     showToast("Brädet är redo!", false);
+}
+// ==========================================
+// AI DRAFT SELECTOR
+// ==========================================
+window.renderDraftSelector = () => {
+    const container = document.getElementById('draftContainer');
+    if (!container || !window.aiDrafts || window.aiDrafts.length < 2) return;
+
+    // Rensa tidigare knappar
+    container.innerHTML = '';
+    
+    const banner = document.createElement('div');
+    banner.className = "bg-indigo-50 border border-indigo-100 rounded-lg p-3 mt-4 mb-2 flex items-center gap-4 flex-wrap shadow-inner";
+    
+    const label = document.createElement('span');
+    label.className = "text-sm font-bold text-indigo-800 flex items-center gap-2";
+    label.innerHTML = "✨ Fler AI-alternativ genererades:";
+    banner.appendChild(label);
+
+    window.aiDrafts.forEach((draft, idx) => {
+        const btn = document.createElement('button');
+        
+        // Styla Flash 3.1 annorlunda än Gemma
+        if (draft.info.style === 'gemini') {
+            btn.className = "px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm transition";
+        } else {
+            btn.className = "px-3 py-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-md shadow-sm transition";
+        }
+        
+        btn.textContent = `Alternativ ${idx + 1} (${draft.info.id})`;
+        
+        btn.onclick = async () => {
+            // Skriv över nuvarande bräde med detta utkast
+            const boardToApply = draft.board;
+            boards[currentBoardIndex] = boardToApply;
+            await saveBoard(boards[currentBoardIndex]);
+            showToast("Alternativ laddat!", false);
+            renderMainContent(); // Rendera om (drafts stannar kvar tills vi stänger)
+            window.renderDraftSelector(); // Rita om knapparna
+        };
+
+        banner.appendChild(btn);
+    });
+
+    container.appendChild(banner);
+};
+
+// Vi måste anropa renderDraftSelector när sidan ritas ut (ifall de redan finns i minnet)
+const originalRenderMainContent = renderMainContent;
+renderMainContent = () => {
+    originalRenderMainContent();
+    setTimeout(() => {
+        if(document.getElementById('draftContainer')) window.renderDraftSelector();
+    }, 50);
 }
