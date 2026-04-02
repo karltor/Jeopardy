@@ -194,25 +194,39 @@ async function fetchAiModel(apiKey, systemInstruction, userText, modelName) {
 }
 
 function parseAiResponse(data) {
-    let aiText = data.candidates[0].content.parts[0].text;
-    
-    // Städa bort markdown (```json och ```) om modellen struntar i mime-typen
-    aiText = aiText.replace(/```json\n?/gi, '').replace(/```/g, '').trim();
-    
-    const firstBrace = aiText.indexOf('{');
-    const lastBrace = aiText.lastIndexOf('}');
-    
-    if (firstBrace !== -1 && lastBrace !== -1) {
-        aiText = aiText.substring(firstBrace, lastBrace + 1);
-    } else {
-        throw new Error("Hittade inte JSON.");
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+        throw new Error("API-svar saknar innehåll.");
     }
     
-    const board = JSON.parse(aiText);
-    if (!board.categories || board.categories.length !== 6 || !board.questions || board.questions.length !== 6) {
-        throw new Error("Fel struktur.");
-    }
+    const rawText = data.candidates[0].content.parts[0].text;
+    
+    try {
+        // Tvätta strängen från markdown
+        let cleanText = rawText.replace(/```json\n?/gi, '').replace(/```/g, '').trim();
+        
+        const firstBrace = cleanText.indexOf('{');
+        const lastBrace = cleanText.lastIndexOf('}');
+        
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+        } else {
+            throw new Error("Hittade inte start/slut-klamrar { }");
+        }
+        
+        const board = JSON.parse(cleanText);
+        if (!board.categories || board.categories.length !== 6 || !board.questions || board.questions.length !== 6) {
+            throw new Error("Fel antal kategorier eller frågor.");
+        }
 
-    board.media = {};
-    return board;
+        board.media = {};
+        return board;
+    } catch (e) {
+        // HÄR FÅNGAR VI RÅDATA OM DET KRASCHAR
+        console.groupCollapsed("❌ Trasig JSON från AI");
+        console.log("Felmeddelande:", e.message);
+        console.log("Råtext från AI:", rawText);
+        console.groupEnd();
+        
+        throw e; // Kasta vidare felet så runMultiModelGeneration fångar det
+    }
 }
