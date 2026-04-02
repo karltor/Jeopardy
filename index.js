@@ -65,19 +65,25 @@ function renderSidebar() {
         btn.appendChild(nameSpan);
         btn.appendChild(countSpan);
         
-        btn.onclick = () => selectBoard(index);
+        // Uppdaterat: Manuellt klick i menyn RENSAR drafts
+        btn.onclick = () => window.selectBoard(index, true);
         list.appendChild(btn);
     });
 }
 
-function selectBoard(index) {
+window.selectBoard = (index, clearDrafts = true) => {
     console.log("Valde bräde index:", index);
     currentBoardIndex = index;
     editModeActive = false;
-    window.aiDrafts = []
+    
+    // Rensa BARA drafts om vi säger åt den att göra det (manuellt klick)
+    if (clearDrafts) {
+        window.aiDrafts = []; 
+    }
+    
     renderSidebar();
     renderMainContent();
-}
+};
 
 function renderMainContent() {
     const container = document.getElementById('mainContent');
@@ -102,6 +108,10 @@ function renderMainContent() {
         renderEditMode(container, board);
     } else {
         renderViewMode(container, board);
+        // Uppdaterat: Kalla på AI Drafts om vi är i View Mode och det finns ett spelbräde
+        setTimeout(() => {
+            if(document.getElementById('draftContainer')) window.renderDraftSelector();
+        }, 50);
     }
 }
 
@@ -219,7 +229,7 @@ function renderEditMode(container, board) {
     wrapper.append(header, nameInp, grid);
     container.appendChild(wrapper);
 
-    // Rendera kategorier och frågor (precis som du redan påbörjat med createElement)
+    // Rendera kategorier och frågor
     board.categories.forEach((cat, i) => {
         const inp = document.createElement('input');
         inp.value = cat; 
@@ -249,6 +259,7 @@ function renderEditMode(container, board) {
         }
     }
 }
+
 // ==========================================
 // INTERAKTIONER & KNAPPAR
 // ==========================================
@@ -473,9 +484,13 @@ export async function applyAiBoard(aiData, overwriteCurrent = false) {
     }
     await saveBoard(boards[currentBoardIndex]);
     boards = await loadAllBoards();
-    selectBoard(currentBoardIndex); 
+    
+    // Uppdaterat: false säger åt den att INTE rensa drafts när vi precis fått dem
+    window.selectBoard(currentBoardIndex, false); 
+    
     showToast("Brädet är redo!", false);
 }
+
 // ==========================================
 // AI DRAFT SELECTOR
 // ==========================================
@@ -521,12 +536,3 @@ window.renderDraftSelector = () => {
 
     container.appendChild(banner);
 };
-
-// Vi måste anropa renderDraftSelector när sidan ritas ut (ifall de redan finns i minnet)
-const originalRenderMainContent = renderMainContent;
-renderMainContent = () => {
-    originalRenderMainContent();
-    setTimeout(() => {
-        if(document.getElementById('draftContainer')) window.renderDraftSelector();
-    }, 50);
-}
