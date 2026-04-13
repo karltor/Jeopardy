@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>Jeopardy - Spel (Host)</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -103,8 +104,17 @@
 
             <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 5px;">Inkommande Buzz:</h3>
             <ul id="buzzer-list" style="list-style: none; padding: 0; margin: 0; flex-grow: 1; overflow-y: auto;"></ul>
-        </div> 
-    </div> 
+        </div>
+    </div>
+
+    <div id="qr-widget" class="qr-expanded" style="display: none;">
+        <div id="qr-resize-handle" title="Dra för att ändra storlek"></div>
+        <button id="qr-minimize-btn" title="Minimera">—</button>
+        <div id="qr-label">Elevlänk</div>
+        <div id="qr-code"></div>
+    </div>
+    <button id="qr-show-btn" style="display: none;" title="Visa QR-kod">QR</button>
+
     <script type="module" src="host.js"></script>
 </body>
 </html>
