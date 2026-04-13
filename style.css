@@ -215,3 +215,96 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: 
     opacity: 1;
     bottom: 40px;
 }
+
+/* QR Code Widget */
+#qr-widget {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 200px;
+    height: 230px;
+    min-width: 120px;
+    min-height: 150px;
+    max-width: 90vw;
+    max-height: 90vh;
+    background: #fff;
+    border: 2px solid #1e90ff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    z-index: 9999;
+    box-sizing: border-box;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    user-select: none;
+}
+
+#qr-resize-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, #1e90ff 0%, #1e90ff 50%, transparent 50%);
+    border-top-left-radius: 6px;
+}
+
+#qr-minimize-btn {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #1e90ff;
+    cursor: pointer;
+    padding: 2px 8px;
+    line-height: 1;
+}
+#qr-minimize-btn:hover { color: #0073e6; }
+
+#qr-label {
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #1e90ff;
+    margin-bottom: 6px;
+    margin-top: 4px;
+}
+
+#qr-code {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#qr-code img, #qr-code canvas {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
+}
+
+#qr-show-btn {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 50px;
+    height: 50px;
+    background: #1e90ff;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 1em;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    z-index: 9999;
+}
+#qr-show-btn:hover { background: #0073e6; }

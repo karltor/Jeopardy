@@ -47,11 +47,114 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
     
     // Kopiera länk-logik (använder den slutgiltiga koden efter initializeRoom)
+    const playUrl = window.location.href.replace('host.html', 'play.html') + '?' + roomId;
     document.getElementById('copy-link-btn').addEventListener('click', () => {
-        const playUrl = window.location.href.replace('host.html', 'play.html') + '?' + roomId;
         navigator.clipboard.writeText(playUrl).then(() => showToast('Länk kopierad!'));
     });
+
+    setupQrWidget(playUrl);
 });
+
+// --- QR-kod widget (elevlänk) ---
+function setupQrWidget(playUrl) {
+    const widget = document.getElementById('qr-widget');
+    const showBtn = document.getElementById('qr-show-btn');
+    const minBtn = document.getElementById('qr-minimize-btn');
+    const handle = document.getElementById('qr-resize-handle');
+    const qrContainer = document.getElementById('qr-code');
+    if (!widget || !showBtn || typeof QRCode === 'undefined') return;
+
+    // Generera QR-koden i största rimliga storlek — CSS skalar ner den efter behov.
+    qrContainer.innerHTML = '';
+    new QRCode(qrContainer, {
+        text: playUrl,
+        width: 512,
+        height: 512,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+    });
+
+    // Visa widgeten efter initiering (den var dold tills URL:en fanns)
+    widget.style.display = 'flex';
+    showBtn.style.display = 'none';
+
+    // Minimera / visa
+    minBtn.addEventListener('click', () => {
+        widget.style.display = 'none';
+        showBtn.style.display = 'block';
+    });
+    showBtn.addEventListener('click', () => {
+        widget.style.display = 'flex';
+        showBtn.style.display = 'none';
+    });
+
+    // Resize via övre vänstra hörnet — widgetens nedre högra hörn är förankrat.
+    let resizing = false;
+    let startX = 0, startY = 0, startW = 0, startH = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+        resizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = widget.getBoundingClientRect();
+        startW = rect.width;
+        startH = rect.height;
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!resizing) return;
+        const dx = startX - e.clientX;
+        const dy = startY - e.clientY;
+        // Bibehåll ungefärligt förhållande mellan bredd och höjd genom att välja största delta.
+        const delta = Math.max(dx, dy);
+        let newW = startW + delta;
+        let newH = startH + delta;
+        const minW = 120, minH = 150;
+        const maxW = window.innerWidth - 40;
+        const maxH = window.innerHeight - 40;
+        newW = Math.max(minW, Math.min(maxW, newW));
+        newH = Math.max(minH, Math.min(maxH, newH));
+        widget.style.width = newW + 'px';
+        widget.style.height = newH + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        resizing = false;
+    });
+
+    // Touch-stöd för resize
+    handle.addEventListener('touchstart', (e) => {
+        if (!e.touches.length) return;
+        resizing = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        const rect = widget.getBoundingClientRect();
+        startW = rect.width;
+        startH = rect.height;
+        e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!resizing || !e.touches.length) return;
+        const dx = startX - e.touches[0].clientX;
+        const dy = startY - e.touches[0].clientY;
+        const delta = Math.max(dx, dy);
+        let newW = startW + delta;
+        let newH = startH + delta;
+        const minW = 120, minH = 150;
+        const maxW = window.innerWidth - 40;
+        const maxH = window.innerHeight - 40;
+        newW = Math.max(minW, Math.min(maxW, newW));
+        newH = Math.max(minH, Math.min(maxH, newH));
+        widget.style.width = newW + 'px';
+        widget.style.height = newH + 'px';
+        e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => { resizing = false; });
+}
 
 // NY FUNKTION: Hanterar skapande av rum och provar ny kod vid krock
 async function initializeRoom() {
