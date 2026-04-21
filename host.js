@@ -309,7 +309,7 @@ async function finalizeTeamSetupAndStart() {
 }
 
 function setupGameBoard() {
-    document.getElementById('play-mode').style.display = 'block';
+    document.getElementById('play-mode').style.display = 'flex';
     document.getElementById('game-name').textContent = currentBoard.name;
     const gameBoard = document.getElementById('game-board'); gameBoard.innerHTML = '';
 

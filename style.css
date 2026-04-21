@@ -115,18 +115,18 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: 
 .media-share-block p { color: #333; line-height: 1.5; }
 
 /* Play Mode Styles */
-#play-mode { padding: 20px 20px 150px 20px; }
-#game-name { text-align: center; font-size: 3em; margin-top: 0; margin-bottom: 20px; color: #1e90ff; }
-#game-board { display: grid; grid-template-columns: repeat(6, 1fr); grid-gap: 5px; }
-.category-cell, .question-cell { display: flex; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; }
-.category-cell { background-color: #00008b; color: #fff; padding: 15px 5px; font-size: 1.1em; font-weight: bold; text-transform: uppercase; border-radius: 5px; }
+#play-mode { flex: 1; flex-direction: column; padding: 12px 16px 0 16px; min-height: 0; box-sizing: border-box; }
+#game-name { text-align: center; font-size: clamp(1.2em, 3.2vh, 2.4em); margin: 0 0 8px 0; color: #1e90ff; flex-shrink: 0; }
+#game-board { display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: auto repeat(5, 1fr); grid-gap: 5px; flex: 1; min-height: 0; }
+.category-cell, .question-cell { display: flex; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; min-height: 0; min-width: 0; overflow: hidden; }
+.category-cell { background-color: #00008b; color: #fff; padding: 6px 4px; font-size: clamp(0.65em, 1.3vw, 1.1em); font-weight: bold; text-transform: uppercase; border-radius: 5px; line-height: 1.15; }
 
-.question-cell { background-color: #2b5c8f; color: #ffd700; padding: 25px 10px; font-size: 2em; font-weight: bold; cursor: pointer; border-radius: 5px; text-shadow: 2px 2px 0 #000; }
+.question-cell { background-color: #2b5c8f; color: #ffd700; padding: 4px 6px; font-size: clamp(1em, 3vw, 2em); font-weight: bold; cursor: pointer; border-radius: 5px; text-shadow: 2px 2px 0 #000; }
 .question-cell:hover { background-color: #3b76b3; }
 .question-cell.clicked { background-color: #999; cursor: default; text-shadow: none; }
 
 /* Teams Section (Anpassad för Buzzer-sidobar) */
-#teams { position: fixed; bottom: 0; left: 0; width: calc(100% - 300px); background-color: #00008b; padding: 10px 5px; box-sizing: border-box; overflow-y: hidden; border-top: 3px solid #ffd700; z-index: 10; }
+#teams { flex-shrink: 0; width: 100%; background-color: #00008b; padding: 8px 5px; box-sizing: border-box; overflow-y: hidden; border-top: 3px solid #ffd700; margin-top: 8px; }
 #teams h2 { color: #fff; text-align: center; margin: 0 0 5px 0; font-size: 1.1em; }
 #team-list { display: flex; justify-content: space-between; flex-wrap: nowrap; gap: 5px; align-items: flex-start; }
 .team { display: flex; flex-direction: column; align-items: center; color: #fff; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 8px; flex: 1; min-width: 0; }
