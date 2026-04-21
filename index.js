@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-config.js';
+import { auth, db, signInAnonymously } from './firebase-config.js';
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 import { loadAllBoards, saveBoard, deleteBoard, getBoard, boardHasMedia } from './board-db.js';
@@ -332,18 +332,22 @@ window.copyJson = () => {
 window.shareViaLink = async () => {
     const board = boards[currentBoardIndex];
     try {
+        if (!auth.currentUser) {
+            await signInAnonymously(auth);
+        }
         const shareId = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
         await setDoc(doc(db, "sharedBoards", shareId), {
-            name: board.name, 
-            categories: board.categories, 
+            name: board.name,
+            categories: board.categories,
             questionsJson: JSON.stringify(board.questions),
-            answersJson: board.answers ? JSON.stringify(board.answers) : null, 
+            answersJson: board.answers ? JSON.stringify(board.answers) : null,
             sharedAt: new Date().toISOString()
         });
         const shareUrl = window.location.href.split('?')[0] + '?board=' + shareId;
         document.getElementById('shareLinkOutput').value = shareUrl;
         document.getElementById('shareLinkContainer').classList.remove('hidden');
     } catch (e) {
+        console.error('Delning misslyckades:', e);
         showToast('Något gick fel vid delning.', true);
     }
 };
