@@ -173,6 +173,23 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: 
 
 #close-question-btn { margin-top: 30px; padding: 15px 30px; font-size: 1.2em; background-color: #333; color: white; border: none; border-radius: 5px; cursor: pointer; }
 
+/* Final Jeopardy */
+#final-question-popup { position: fixed; top: 0; left: 0; width: calc(100% - 300px); height: 100%; background-color: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; z-index: 60; }
+#final-question-content { background-color: #fff; padding: 40px; width: 80%; max-width: 900px; border-radius: 15px; text-align: center; border: 5px solid #4b0082; position: relative; }
+#final-event-banner { display: inline-block; padding: 10px 18px; font-size: 1.4em; font-weight: bold; color: #fff; background-color: #4b0082; border-radius: 8px; margin-bottom: 20px; letter-spacing: 1px; }
+#final-question-text { font-size: 2.6em; font-weight: bold; margin-bottom: 25px; color: #4b0082; word-wrap: break-word; }
+#final-question-answer { color: #28a745; font-size: 1.6em; font-weight: bold; margin-bottom: 25px; }
+#final-adjust-points { display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; margin: 20px 0; }
+#final-show-answer-btn { padding: 12px 24px; font-size: 1.1em; background-color: #ff8c00; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 10px; }
+#final-close-btn { padding: 12px 24px; font-size: 1.1em; background-color: #333; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+.final-bet-row { display: flex; align-items: center; gap: 12px; padding: 8px; background: #f4f1fa; border-radius: 8px; border: 1px solid #ddd6f3; }
+.final-bet-row .team-name { flex: 1; text-align: left; font-weight: bold; color: #4b0082; }
+.final-bet-row .team-score { color: #666; font-size: 0.9em; min-width: 90px; text-align: right; }
+.final-bet-row .bet-input { width: 110px; padding: 8px; border: 1px solid #c4b5e0; border-radius: 5px; font-size: 1em; text-align: right; }
+.final-bet-row .bet-max { font-size: 0.8em; color: #666; min-width: 90px; text-align: left; }
+.final-bet-row .bet-input.invalid { border-color: #dc3545; background-color: #ffe6e6; }
+
 /* Event Animations (Anpassad för Buzzer-sidobar) */
 .event-splash { position: fixed; top: 0; left: 0; width: calc(100% - 300px); height: 100%; background-size: 300% 300%; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 200; color: white; text-transform: uppercase; text-align: center; }
 @keyframes explode { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }

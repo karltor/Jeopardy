@@ -80,6 +80,27 @@
                 </div>
             </div>
 
+            <div id="final-bet-modal" class="custom-modal" style="display: none;">
+                <div class="modal-content" style="max-width: 640px;">
+                    <h2 style="color:#4b0082;">Final Jeopardy — Lägg in bets</h2>
+                    <p>Kategori: <strong id="final-bet-category"></strong></p>
+                    <p style="font-size:0.9em; color:#666;">Varje lag bettar max <code>max(sin poäng, 1000)</code>.</p>
+                    <div id="final-bet-teams" style="display:flex; flex-direction:column; gap:10px; margin:15px 0;"></div>
+                    <button id="final-bet-continue-btn">Visa Frågan</button>
+                </div>
+            </div>
+
+            <div id="final-question-popup" style="display: none;">
+                <div id="final-question-content">
+                    <div id="final-event-banner">FINAL JEOPARDY</div>
+                    <p id="final-question-text"></p>
+                    <p id="final-question-answer" style="display:none;"></p>
+                    <div id="final-adjust-points"></div>
+                    <button id="final-show-answer-btn">Visa Facit</button>
+                    <button id="final-close-btn">Avsluta Spelet</button>
+                </div>
+            </div>
+
             <div id="end-screen" style="display: none;">
                 <h1>Spelet är slut!</h1>
                 <div id="results"></div>

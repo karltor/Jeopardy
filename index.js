@@ -187,6 +187,30 @@ function renderViewMode(container, board) {
     });
 
     wrapper.appendChild(grid);
+
+    if (board.finalJeopardy && board.finalJeopardy.enabled && board.finalJeopardy.question) {
+        const fjView = document.createElement('div');
+        fjView.className = "mt-6 p-4 rounded-xl border border-purple-200 bg-purple-50";
+        const fjTitle = document.createElement('h3');
+        fjTitle.className = "text-sm font-black text-purple-800 mb-2 uppercase tracking-wider";
+        fjTitle.textContent = "Final Jeopardy";
+        const fjCat = document.createElement('p');
+        fjCat.className = "text-base font-bold text-purple-900";
+        fjCat.textContent = board.finalJeopardy.category || '(ingen kategori)';
+        const fjQ = document.createElement('p');
+        fjQ.className = "text-sm text-slate-700 mt-1";
+        fjQ.textContent = board.finalJeopardy.question;
+        if (board.finalJeopardy.answer) {
+            const fjA = document.createElement('p');
+            fjA.className = "text-xs text-emerald-700 font-bold mt-1";
+            fjA.textContent = `Facit: ${board.finalJeopardy.answer}`;
+            fjView.append(fjTitle, fjCat, fjQ, fjA);
+        } else {
+            fjView.append(fjTitle, fjCat, fjQ);
+        }
+        wrapper.appendChild(fjView);
+    }
+
     container.appendChild(wrapper);
 }
 
@@ -238,14 +262,14 @@ function renderEditMode(container, board) {
         for (let col = 0; col < 6; col++) {
             const cell = document.createElement('div');
             cell.className = "flex flex-col gap-px bg-slate-200 border border-slate-300 rounded overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:z-10";
-            
+
             const qInp = document.createElement('textarea');
-            qInp.value = board.questions[col][row]; 
+            qInp.value = board.questions[col][row];
             qInp.className = "w-full h-24 resize-none text-sm leading-snug p-2 outline-none text-center bg-white";
             qInp.oninput = (e) => board.questions[col][row] = e.target.value;
 
             const aInp = document.createElement('textarea');
-            aInp.value = (board.answers && board.answers[col]) ? board.answers[col][row] : ''; 
+            aInp.value = (board.answers && board.answers[col]) ? board.answers[col][row] : '';
             aInp.className = "w-full h-10 resize-none text-[10px] leading-tight p-1 outline-none text-center bg-slate-50 border-t border-slate-200 text-green-700 font-bold";
             aInp.oninput = (e) => board.answers[col][row] = e.target.value;
 
@@ -253,6 +277,69 @@ function renderEditMode(container, board) {
             grid.appendChild(cell);
         }
     }
+
+    renderFinalJeopardyEditor(wrapper, board);
+}
+
+function renderFinalJeopardyEditor(wrapper, board) {
+    if (!board.finalJeopardy) {
+        board.finalJeopardy = { enabled: false, category: '', question: '', answer: '' };
+    }
+    const fj = board.finalJeopardy;
+
+    const section = document.createElement('div');
+    section.className = "mt-8 p-5 rounded-xl border border-purple-200 bg-purple-50";
+
+    const header = document.createElement('div');
+    header.className = "flex items-center justify-between mb-3";
+    const title = document.createElement('h3');
+    title.className = "text-lg font-black text-purple-800";
+    title.textContent = "Final Jeopardy (valfri slutomgång)";
+    const toggleLabel = document.createElement('label');
+    toggleLabel.className = "flex items-center gap-2 text-sm font-bold text-purple-700 cursor-pointer";
+    const toggle = document.createElement('input');
+    toggle.type = "checkbox";
+    toggle.checked = !!fj.enabled;
+    toggle.className = "w-4 h-4";
+    toggleLabel.append(toggle, document.createTextNode('Aktiverad'));
+    header.append(title, toggleLabel);
+    section.appendChild(header);
+
+    const fieldsWrap = document.createElement('div');
+    fieldsWrap.className = "space-y-2";
+
+    const catInp = document.createElement('input');
+    catInp.type = "text";
+    catInp.value = fj.category || '';
+    catInp.placeholder = "Kategori (visas före frågan)";
+    catInp.className = "w-full p-2 text-sm font-bold bg-white border border-purple-200 rounded focus:ring-2 focus:ring-purple-500 outline-none";
+    catInp.oninput = (e) => fj.category = e.target.value;
+
+    const qInp = document.createElement('textarea');
+    qInp.value = fj.question || '';
+    qInp.placeholder = "Final-fråga";
+    qInp.className = "w-full h-20 resize-none text-sm p-2 bg-white border border-purple-200 rounded focus:ring-2 focus:ring-purple-500 outline-none";
+    qInp.oninput = (e) => fj.question = e.target.value;
+
+    const aInp = document.createElement('textarea');
+    aInp.value = fj.answer || '';
+    aInp.placeholder = "Facit";
+    aInp.className = "w-full h-14 resize-none text-sm p-2 bg-white border border-purple-200 rounded focus:ring-2 focus:ring-purple-500 outline-none text-green-700 font-bold";
+    aInp.oninput = (e) => fj.answer = e.target.value;
+
+    fieldsWrap.append(catInp, qInp, aInp);
+    section.appendChild(fieldsWrap);
+
+    const applyEnabled = () => {
+        const enabled = toggle.checked;
+        fj.enabled = enabled;
+        fieldsWrap.style.opacity = enabled ? '1' : '0.4';
+        [catInp, qInp, aInp].forEach(el => el.disabled = !enabled);
+    };
+    toggle.addEventListener('change', applyEnabled);
+    applyEnabled();
+
+    wrapper.appendChild(section);
 }
 
 // ==========================================
@@ -323,6 +410,7 @@ window.closeShareModal = () => {
 window.copyJson = () => {
     const board = boards[currentBoardIndex];
     const exportBoard = { name: board.name, categories: board.categories, questions: board.questions, answers: board.answers };
+    if (board.finalJeopardy) exportBoard.finalJeopardy = board.finalJeopardy;
     navigator.clipboard.writeText(JSON.stringify(exportBoard)).then(() => {
         showToast("JSON kopierad till urklipp!", false);
         closeShareModal();
@@ -341,6 +429,7 @@ window.shareViaLink = async () => {
             categories: board.categories,
             questionsJson: JSON.stringify(board.questions),
             answersJson: board.answers ? JSON.stringify(board.answers) : null,
+            finalJeopardyJson: board.finalJeopardy ? JSON.stringify(board.finalJeopardy) : null,
             sharedAt: new Date().toISOString()
         });
         const shareUrl = window.location.href.split('?')[0] + '?board=' + shareId;
@@ -398,7 +487,8 @@ async function checkForSharedBoard() {
                 categories: sharedBoard.categories,
                 questions: JSON.parse(sharedBoard.questionsJson),
                 answers: sharedBoard.answersJson ? JSON.parse(sharedBoard.answersJson) : null,
-                media: {} 
+                finalJeopardy: sharedBoard.finalJeopardyJson ? JSON.parse(sharedBoard.finalJeopardyJson) : null,
+                media: {}
             };
 
             const existingIndex = boards.findIndex(b => b.name === boardData.name);
