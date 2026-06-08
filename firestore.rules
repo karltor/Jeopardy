@@ -44,9 +44,9 @@ service cloud.firestore {
         allow read: if true;
         allow create: if request.auth != null && request.auth.uid == uid;
 
-        // Elev får bara ändra 'vote'-fältet
+        // Elev får bara ändra 'vote'- eller 'finalAnswer'-fältet
         allow update: if request.auth != null && request.auth.uid == uid
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vote']);
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vote', 'finalAnswer']);
 
         // Host får ändra allt
         allow write: if request.auth != null && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;

@@ -20,9 +20,12 @@ let mappedEvents = {};
 let solidaritetTurn = -1;
 let currentQuestionPreEvent = null;
 let currentQuestionPostEvent = null;
-let frozenTeam = null; 
+let frozenTeam = null;
 let nextFrozenTeam = null;
 let allianceTeams = [];
+let inFinalJeopardy = false;
+let finalBets = {};
+let finalRevealed = {};
 
 // Room State - Börja med en genererad kod
 let roomId = generateNewCode();
@@ -211,6 +214,7 @@ function handleBuzzerUpdate(buzzes) {
 function handlePlayersUpdate(newPlayersMap) {
     playersMap = newPlayersMap;
     renderPlayersInTeams();
+    if (inFinalJeopardy) renderFinalTeamStatuses();
 }
 
 // --- BUZZER KONTROLLER ---
@@ -706,7 +710,7 @@ function openFinalBetModal() {
     const continueBtn = document.getElementById('final-bet-continue-btn');
     const newBtn = continueBtn.cloneNode(true);
     continueBtn.parentNode.replaceChild(newBtn, continueBtn);
-    newBtn.onclick = () => {
+    newBtn.onclick = async () => {
         const bets = {};
         for (const team of teams) {
             let v = parseInt(inputs[team].value, 10);
@@ -720,10 +724,56 @@ function openFinalBetModal() {
             bets[team] = v;
         }
         document.getElementById('final-bet-modal').style.display = 'none';
+        finalBets = bets;
+        finalRevealed = {};
+        inFinalJeopardy = true;
+        await setRoomEvent(roomId, 'final_jeopardy');
         showFinalQuestion(bets);
     };
 
     document.getElementById('final-bet-modal').style.display = 'flex';
+}
+
+function getTeamFirstFinalAnswer(team) {
+    let best = null;
+    Object.entries(playersMap).forEach(([uid, p]) => {
+        if (p.team !== team) return;
+        if (!p.finalAnswer || !p.finalAnswer.text) return;
+        if (!best) { best = { ...p, uid }; return; }
+        const aMs = p.finalAnswer.timestamp?.toMillis?.() ?? 0;
+        const bMs = best.finalAnswer.timestamp?.toMillis?.() ?? 0;
+        if (aMs && bMs && aMs < bMs) best = { ...p, uid };
+    });
+    return best;
+}
+
+function renderFinalTeamStatuses() {
+    teams.forEach((team, idx) => {
+        const statusEl = document.getElementById(`final-status-${idx}`);
+        const revealBtn = document.getElementById(`final-reveal-${idx}`);
+        if (!statusEl || !revealBtn) return;
+
+        const first = getTeamFirstFinalAnswer(team);
+        if (!first) {
+            statusEl.textContent = 'Inväntar svar…';
+            statusEl.style.color = '#888';
+            revealBtn.disabled = true;
+            revealBtn.textContent = 'Visa svar';
+            return;
+        }
+
+        statusEl.textContent = `✓ ${first.name} skickade in`;
+        statusEl.style.color = '#28a745';
+        revealBtn.disabled = false;
+
+        if (finalRevealed[team]) {
+            revealBtn.textContent = `Svar: ${first.finalAnswer.text}`;
+            revealBtn.classList.add('final-reveal-shown');
+        } else {
+            revealBtn.textContent = 'Visa svar';
+            revealBtn.classList.remove('final-reveal-shown');
+        }
+    });
 }
 
 function showFinalQuestion(bets) {
@@ -739,19 +789,32 @@ function showFinalQuestion(bets) {
     adjustDiv.innerHTML = '';
 
     const settled = {};
-    teams.forEach(team => {
+    teams.forEach((team, idx) => {
         const bet = bets[team] || 0;
         const teamDiv = document.createElement('div');
-        teamDiv.className = 'adjust-team';
+        teamDiv.className = 'adjust-team final-team-row';
 
         const nameP = document.createElement('p');
         nameP.textContent = `${team} (${teamScores[team]} p)`;
 
         const betP = document.createElement('p');
-        betP.style.fontSize = '0.95em';
-        betP.style.color = '#4b0082';
-        betP.style.margin = '0 0 8px 0';
+        betP.className = 'final-bet-line';
         betP.textContent = `Bet: ${bet} p`;
+
+        const statusP = document.createElement('p');
+        statusP.className = 'final-status-line';
+        statusP.id = `final-status-${idx}`;
+        statusP.textContent = 'Inväntar svar…';
+
+        const revealBtn = document.createElement('button');
+        revealBtn.className = 'final-reveal-btn';
+        revealBtn.id = `final-reveal-${idx}`;
+        revealBtn.textContent = 'Visa svar';
+        revealBtn.disabled = true;
+        revealBtn.onclick = () => {
+            finalRevealed[team] = true;
+            renderFinalTeamStatuses();
+        };
 
         const btnGroup = document.createElement('div');
         btnGroup.className = 'btn-group';
@@ -778,9 +841,11 @@ function showFinalQuestion(bets) {
         minusBtn.onclick = () => apply(-bet);
 
         btnGroup.append(plusBtn, minusBtn);
-        teamDiv.append(nameP, betP, btnGroup);
+        teamDiv.append(nameP, betP, statusP, revealBtn, btnGroup);
         adjustDiv.appendChild(teamDiv);
     });
+
+    renderFinalTeamStatuses();
 
     const showAnsBtn = document.getElementById('final-show-answer-btn');
     if (fj.answer && fj.answer.trim()) {
@@ -797,8 +862,10 @@ function showFinalQuestion(bets) {
     const closeBtn = document.getElementById('final-close-btn');
     const newClose = closeBtn.cloneNode(true);
     closeBtn.parentNode.replaceChild(newClose, closeBtn);
-    newClose.onclick = () => {
+    newClose.onclick = async () => {
         popup.style.display = 'none';
+        inFinalJeopardy = false;
+        await setRoomEvent(roomId, null);
         showEndScreen();
     };
 

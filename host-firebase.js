@@ -151,3 +151,15 @@ export async function setRoomEvent(roomId, eventName) {
         console.error("Set event error:", e);
     }
 }
+
+// Eleven skickar in sitt Final Jeopardy-svar (anropas från play.js)
+export async function submitFinalAnswer(roomId, uid, text) {
+    try {
+        await updateDoc(doc(db, "rooms", roomId, "players", uid), {
+            finalAnswer: { text: text, timestamp: serverTimestamp() }
+        });
+    } catch (e) {
+        console.error("Submit final answer error:", e);
+        throw e;
+    }
+}

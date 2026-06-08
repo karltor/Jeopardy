@@ -60,6 +60,15 @@
         <button id="buzzer-btn" disabled>BUZZ</button>
     </div>
 
+    <div class="container" id="final-section" style="display: none;">
+        <h2 id="final-player-info" style="margin-top:0;"></h2>
+        <h3 style="color: #ffd700; margin-bottom: 10px;">FINAL JEOPARDY</h3>
+        <p id="final-instructions" style="font-size: 1.05em; margin-bottom: 15px;">Skriv ert lags svar och tryck Skicka. Första svaret per lag räknas!</p>
+        <input type="text" id="final-input" placeholder="Skriv ert svar..." maxlength="200">
+        <button id="final-submit-btn">Skicka svar</button>
+        <p id="final-locked-info" style="display:none; margin-top:18px; color:#ffd700; font-size:1.1em;"></p>
+    </div>
+
     <div id="toast-msg"></div>
 
     <script type="module" src="play.js"></script>
