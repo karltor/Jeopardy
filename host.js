@@ -424,11 +424,17 @@ function getLeader() {
 
 function flashEventSplash(title, subtitle, bgColor, buttonText, callback) {
     const splash = document.getElementById('generic-event-splash');
-    document.getElementById('generic-event-title').textContent = title;
-    
+
+    const titleEl = document.getElementById('generic-event-title');
+    titleEl.innerHTML = '';
+    title.split('<br>').forEach((line, i, arr) => {
+        titleEl.appendChild(document.createTextNode(line));
+        if (i < arr.length - 1) titleEl.appendChild(document.createElement('br'));
+    });
+
     const subEl = document.getElementById('generic-event-sub');
-    subEl.innerHTML = ''; 
-    
+    subEl.innerHTML = '';
+
     subtitle.split('<br>').forEach((line, i, arr) => {
         subEl.appendChild(document.createTextNode(line));
         if (i < arr.length - 1) subEl.appendChild(document.createElement('br'));
@@ -624,8 +630,179 @@ function closeQuestionPopup() {
     const audio = document.querySelector('#question-media audio');
     if (audio) { audio.pause(); audio.currentTime = 0; }
     document.getElementById('question-media').innerHTML = '';
-    setRoomEvent(roomId, null); 
-    if (Object.keys(viewedQuestions).length === totalQuestions) setTimeout(showEndScreen, 1000); 
+    setRoomEvent(roomId, null);
+    if (Object.keys(viewedQuestions).length === totalQuestions) setTimeout(maybeStartFinalJeopardy, 1000);
+}
+
+function hasFinalJeopardy() {
+    const fj = currentBoard.finalJeopardy;
+    return !!(fj && fj.enabled && fj.question && fj.question.trim());
+}
+
+function maybeStartFinalJeopardy() {
+    if (hasFinalJeopardy()) startFinalJeopardy();
+    else showEndScreen();
+}
+
+function startFinalJeopardy() {
+    const fj = currentBoard.finalJeopardy;
+    const catText = (fj.category && fj.category.trim()) ? fj.category : '(ingen kategori)';
+    flashEventSplash(
+        "FINAL<br>JEOPARDY!",
+        `Kategori:<br>${catText}`,
+        "radial-gradient(circle, #2a0845, #6441a5)",
+        "Lägg in bets",
+        () => openFinalBetModal()
+    );
+}
+
+function openFinalBetModal() {
+    const fj = currentBoard.finalJeopardy;
+    document.getElementById('final-bet-category').textContent = fj.category || '(ingen kategori)';
+
+    const container = document.getElementById('final-bet-teams');
+    container.innerHTML = '';
+
+    const inputs = {};
+    teams.forEach(team => {
+        const score = teamScores[team];
+        const maxBet = Math.max(score, 1000);
+
+        const row = document.createElement('div');
+        row.className = 'final-bet-row';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'team-name';
+        nameSpan.textContent = team;
+
+        const scoreSpan = document.createElement('span');
+        scoreSpan.className = 'team-score';
+        scoreSpan.textContent = `${score} p`;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'bet-input';
+        input.min = 0;
+        input.max = maxBet;
+        input.value = 0;
+        input.dataset.max = maxBet;
+
+        const maxSpan = document.createElement('span');
+        maxSpan.className = 'bet-max';
+        maxSpan.textContent = `max ${maxBet}`;
+
+        const validate = () => {
+            let v = parseInt(input.value, 10);
+            if (isNaN(v) || v < 0 || v > maxBet) input.classList.add('invalid');
+            else input.classList.remove('invalid');
+        };
+        input.addEventListener('input', validate);
+
+        row.append(nameSpan, scoreSpan, input, maxSpan);
+        container.appendChild(row);
+        inputs[team] = input;
+    });
+
+    const continueBtn = document.getElementById('final-bet-continue-btn');
+    const newBtn = continueBtn.cloneNode(true);
+    continueBtn.parentNode.replaceChild(newBtn, continueBtn);
+    newBtn.onclick = () => {
+        const bets = {};
+        for (const team of teams) {
+            let v = parseInt(inputs[team].value, 10);
+            if (isNaN(v)) v = 0;
+            const maxBet = parseInt(inputs[team].dataset.max, 10);
+            if (v < 0 || v > maxBet) {
+                showToast(`${team}: bet måste vara 0–${maxBet}`, true);
+                inputs[team].classList.add('invalid');
+                return;
+            }
+            bets[team] = v;
+        }
+        document.getElementById('final-bet-modal').style.display = 'none';
+        showFinalQuestion(bets);
+    };
+
+    document.getElementById('final-bet-modal').style.display = 'flex';
+}
+
+function showFinalQuestion(bets) {
+    const fj = currentBoard.finalJeopardy;
+    const popup = document.getElementById('final-question-popup');
+    document.getElementById('final-question-text').textContent = fj.question;
+
+    const answerEl = document.getElementById('final-question-answer');
+    answerEl.textContent = '';
+    answerEl.style.display = 'none';
+
+    const adjustDiv = document.getElementById('final-adjust-points');
+    adjustDiv.innerHTML = '';
+
+    const settled = {};
+    teams.forEach(team => {
+        const bet = bets[team] || 0;
+        const teamDiv = document.createElement('div');
+        teamDiv.className = 'adjust-team';
+
+        const nameP = document.createElement('p');
+        nameP.textContent = `${team} (${teamScores[team]} p)`;
+
+        const betP = document.createElement('p');
+        betP.style.fontSize = '0.95em';
+        betP.style.color = '#4b0082';
+        betP.style.margin = '0 0 8px 0';
+        betP.textContent = `Bet: ${bet} p`;
+
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'btn-group';
+
+        const plusBtn = document.createElement('button');
+        plusBtn.textContent = 'Rätt (+)';
+        plusBtn.className = 'btn-plus';
+
+        const minusBtn = document.createElement('button');
+        minusBtn.textContent = 'Fel (−)';
+        minusBtn.className = 'btn-minus';
+
+        const apply = (delta) => {
+            if (settled[team]) return;
+            settled[team] = true;
+            teamScores[team] += delta;
+            plusBtn.disabled = true;
+            minusBtn.disabled = true;
+            (delta >= 0 ? plusBtn : minusBtn).style.outline = '3px solid #ffd700';
+            teamDiv.style.opacity = '0.85';
+            updateTeamsDisplay();
+        };
+        plusBtn.onclick = () => apply(bet);
+        minusBtn.onclick = () => apply(-bet);
+
+        btnGroup.append(plusBtn, minusBtn);
+        teamDiv.append(nameP, betP, btnGroup);
+        adjustDiv.appendChild(teamDiv);
+    });
+
+    const showAnsBtn = document.getElementById('final-show-answer-btn');
+    if (fj.answer && fj.answer.trim()) {
+        showAnsBtn.style.display = 'inline-block';
+        showAnsBtn.onclick = () => {
+            answerEl.textContent = `Facit: ${fj.answer}`;
+            answerEl.style.display = 'block';
+            showAnsBtn.style.display = 'none';
+        };
+    } else {
+        showAnsBtn.style.display = 'none';
+    }
+
+    const closeBtn = document.getElementById('final-close-btn');
+    const newClose = closeBtn.cloneNode(true);
+    closeBtn.parentNode.replaceChild(newClose, closeBtn);
+    newClose.onclick = () => {
+        popup.style.display = 'none';
+        showEndScreen();
+    };
+
+    popup.style.display = 'flex';
 }
 
 function showEndScreen() {
