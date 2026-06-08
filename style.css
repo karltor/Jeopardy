@@ -190,6 +190,14 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: 
 .final-bet-row .bet-max { font-size: 0.8em; color: #666; min-width: 90px; text-align: left; }
 .final-bet-row .bet-input.invalid { border-color: #dc3545; background-color: #ffe6e6; }
 
+.final-team-row { min-width: 200px; }
+.final-team-row .final-bet-line { font-size: 0.95em; color: #4b0082; margin: 0 0 4px 0; font-weight: bold; }
+.final-team-row .final-status-line { font-size: 0.85em; color: #888; margin: 0 0 6px 0; font-style: italic; }
+.final-reveal-btn { padding: 8px 14px; font-size: 0.95em; font-weight: bold; background-color: #6441a5; color: #fff; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 8px; max-width: 220px; word-break: break-word; white-space: normal; line-height: 1.2; }
+.final-reveal-btn:hover:not(:disabled) { background-color: #4b0082; }
+.final-reveal-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+.final-reveal-btn.final-reveal-shown { background-color: #fff; color: #4b0082; border: 2px solid #4b0082; cursor: default; }
+
 /* Event Animations (Anpassad för Buzzer-sidobar) */
 .event-splash { position: fixed; top: 0; left: 0; width: calc(100% - 300px); height: 100%; background-size: 300% 300%; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 200; color: white; text-transform: uppercase; text-align: center; }
 @keyframes explode { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }

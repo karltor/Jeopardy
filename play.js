@@ -1,6 +1,7 @@
 import { auth, db, signInAnonymously } from './firebase-config.js';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, orderBy, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+import { submitFinalAnswer } from './host-firebase.js';
 
 let roomId = null;
 let playerTeam = "";
@@ -45,6 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('join-game-btn').addEventListener('click', finalizeJoin);
     document.getElementById('buzzer-btn').addEventListener('click', buzzIn);
+    document.getElementById('final-submit-btn').addEventListener('click', sendFinalAnswer);
+    document.getElementById('final-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendFinalAnswer();
+    });
 });
 
 async function joinRoom(code) {
@@ -232,6 +237,17 @@ function updateUI() {
     const statusText = document.getElementById('status-text');
     const buzzerSection = document.getElementById('buzzer-section');
     const voteSection = document.getElementById('vote-section');
+    const finalSection = document.getElementById('final-section');
+
+    if (currentEvent === 'final_jeopardy') {
+        buzzerSection.style.display = 'none';
+        voteSection.style.display = 'none';
+        finalSection.style.display = 'flex';
+        renderFinalUI();
+        return;
+    } else {
+        finalSection.style.display = 'none';
+    }
 
     if (currentEvent === 'solospelaren') {
         if (isLocked) {
@@ -281,6 +297,71 @@ function updateUI() {
             statusText.textContent = "KLAR!";
             statusText.style.color = "#28a745";
         }
+    }
+}
+
+function getTeamFirstFinalAnswer() {
+    let best = null;
+    teammates.forEach(tm => {
+        if (tm.finalAnswer && tm.finalAnswer.text) {
+            if (!best) { best = tm; return; }
+            const aMs = tm.finalAnswer.timestamp?.toMillis?.() ?? 0;
+            const bMs = best.finalAnswer.timestamp?.toMillis?.() ?? 0;
+            if (aMs && bMs && aMs < bMs) best = tm;
+        }
+    });
+    return best;
+}
+
+function renderFinalUI() {
+    document.getElementById('final-player-info').textContent = `${playerName} i ${playerTeam}`;
+
+    const input = document.getElementById('final-input');
+    const btn = document.getElementById('final-submit-btn');
+    const locked = document.getElementById('final-locked-info');
+    const instr = document.getElementById('final-instructions');
+
+    const teamFirst = getTeamFirstFinalAnswer();
+
+    if (teamFirst) {
+        input.style.display = 'none';
+        btn.style.display = 'none';
+        instr.style.display = 'none';
+        locked.style.display = 'block';
+        if (teamFirst.uid === auth.currentUser.uid) {
+            locked.textContent = `Ert lag svarade: "${teamFirst.finalAnswer.text}"`;
+        } else {
+            locked.textContent = `${teamFirst.name} skickade in: "${teamFirst.finalAnswer.text}"`;
+        }
+    } else {
+        input.style.display = 'block';
+        btn.style.display = 'block';
+        instr.style.display = 'block';
+        locked.style.display = 'none';
+        input.disabled = false;
+        btn.disabled = false;
+    }
+}
+
+async function sendFinalAnswer() {
+    if (currentEvent !== 'final_jeopardy') return;
+    const input = document.getElementById('final-input');
+    const text = input.value.trim();
+    if (!text) { showToast("Skriv ett svar först!", true); return; }
+
+    const teamFirst = getTeamFirstFinalAnswer();
+    if (teamFirst) { showToast("Ert lag har redan skickat in ett svar.", true); return; }
+
+    const btn = document.getElementById('final-submit-btn');
+    btn.disabled = true;
+    input.disabled = true;
+
+    try {
+        await submitFinalAnswer(roomId, auth.currentUser.uid, text);
+    } catch (e) {
+        showToast("Kunde inte skicka svaret. Försök igen.", true);
+        btn.disabled = false;
+        input.disabled = false;
     }
 }
 
