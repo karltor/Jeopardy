@@ -66,21 +66,34 @@ export async function setupFirebaseRoom(roomId, onBuzzerAdd, onPlayersChange) {
         throw new Error("RATE_LIMIT_EXCEEDED");
     }
 
-    // Lyssna på Buzzers
+    // Lyssna på Buzzers (med error+re-subscribe så host inte tappar lyssnare tyst)
     const buzzesRef = collection(db, "rooms", roomId, "buzzes");
-    onSnapshot(query(buzzesRef, orderBy("timestamp", "asc")), (snapshot) => {
-        const buzzes = [];
-        snapshot.forEach(docSnap => buzzes.push(docSnap.data()));
-        onBuzzerAdd(buzzes); 
-    });
+    const buzzesQuery = query(buzzesRef, orderBy("timestamp", "asc"));
+    const subscribeBuzzes = () => {
+        onSnapshot(buzzesQuery, (snapshot) => {
+            const buzzes = [];
+            snapshot.forEach(docSnap => buzzes.push(docSnap.data()));
+            onBuzzerAdd(buzzes);
+        }, (err) => {
+            console.error("Buzzes listener error, re-subscribing:", err);
+            setTimeout(subscribeBuzzes, 2000);
+        });
+    };
+    subscribeBuzzes();
 
     // Lyssna på inloggade elever
     const playersRef = collection(db, "rooms", roomId, "players");
-    onSnapshot(playersRef, (snapshot) => {
-        const playersMap = {};
-        snapshot.forEach(docSnap => playersMap[docSnap.id] = docSnap.data());
-        onPlayersChange(playersMap); 
-    });
+    const subscribePlayers = () => {
+        onSnapshot(playersRef, (snapshot) => {
+            const playersMap = {};
+            snapshot.forEach(docSnap => playersMap[docSnap.id] = docSnap.data());
+            onPlayersChange(playersMap);
+        }, (err) => {
+            console.error("Players listener error, re-subscribing:", err);
+            setTimeout(subscribePlayers, 2000);
+        });
+    };
+    subscribePlayers();
 }
 
 // Lås / Lås upp buzzers
@@ -89,6 +102,9 @@ export async function setRoomLock(roomId, isLocked) {
         await updateDoc(doc(db, "rooms", roomId), { locked: isLocked });
     } catch (e) {
         console.error("Lock error:", e);
+        // Kasta vidare så hosten kan visa en toast om en olåsning faktiskt misslyckas
+        // i stället för att felet tystas helt.
+        throw e;
     }
 }
 
