@@ -219,12 +219,23 @@ function handlePlayersUpdate(newPlayersMap) {
 
 // --- BUZZER KONTROLLER ---
 async function toggleLock() {
-    isLocked = !isLocked;
+    const newLocked = !isLocked;
     const btn = document.getElementById('toggle-lock-btn');
-    btn.textContent = isLocked ? "🔓 Lås upp Buzzers" : "🔒 Lås Buzzers";
-    btn.style.backgroundColor = isLocked ? "#ffc107" : "#28a745";
-    btn.style.color = isLocked ? "#000" : "#fff";
-    await setRoomLock(roomId, isLocked);
+    const applyVisualState = (locked) => {
+        btn.textContent = locked ? "🔓 Lås upp Buzzers" : "🔒 Lås Buzzers";
+        btn.style.backgroundColor = locked ? "#ffc107" : "#28a745";
+        btn.style.color = locked ? "#000" : "#fff";
+    };
+    isLocked = newLocked;
+    applyVisualState(newLocked);
+    try {
+        await setRoomLock(roomId, newLocked);
+    } catch (e) {
+        // Skrivningen gick aldrig fram — återställ UI så hosten ser att det misslyckades
+        isLocked = !newLocked;
+        applyVisualState(!newLocked);
+        showToast("Kunde inte uppdatera låset. Försök igen.", true);
+    }
 }
 
 async function clearBuzzers() {

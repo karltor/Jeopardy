@@ -15,6 +15,9 @@ let hasBuzzed = false;
 let penaltyClicks = 0;
 let penaltyActive = false;
 let lastClearedTime = 0;
+let unsubRoom = null;
+let unsubSelf = null;
+let unsubTeammates = null;
 
 // Funktion för moderna notiser (Ersätter alert)
 function showToast(message, isError = false) {
@@ -50,6 +53,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('final-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') sendFinalAnswer();
     });
+
+    // iOS Safari kapar Firestore-strömmen vid skärmlås / flik-byte och
+    // onSnapshot kan landa i ett tyst feltillstånd. Hämta färsk state vid
+    // återkomst och bygg om lyssnaren. visibilitychange täcker skärmlås /
+    // flik-byte; pageshow täcker Safaris bfcache-restore.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') resyncRoom();
+    });
+    window.addEventListener('pageshow', () => resyncRoom());
 });
 
 async function joinRoom(code) {
@@ -138,7 +150,8 @@ async function finalizeJoin() {
 }
 
 function listenToSelf() {
-    onSnapshot(doc(db, "rooms", roomId, "players", auth.currentUser.uid), (docSnap) => {
+    if (unsubSelf) { try { unsubSelf(); } catch (_) {} unsubSelf = null; }
+    unsubSelf = onSnapshot(doc(db, "rooms", roomId, "players", auth.currentUser.uid), (docSnap) => {
         if (!docSnap.exists()) {
             // Spelaren har blivit kickad
             showToast("Du har blivit borttagen från spelet.", true);
@@ -158,36 +171,61 @@ function listenToSelf() {
             document.getElementById('player-info').textContent = `${playerName} i ${playerTeam}`;
             showToast("Hosten flyttade dig till " + playerTeam, false);
         }
+    }, (err) => {
+        console.error("listenToSelf error, re-subscribing:", err);
+        unsubSelf = null;
+        setTimeout(() => { if (roomId && auth.currentUser) listenToSelf(); }, 2000);
     });
 }
 
-function listenToRoomStatus() {
-    onSnapshot(doc(db, "rooms", roomId), (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            const prevLocked = isLocked;
-            isLocked = data.locked;
-            currentEvent = data.event;
+// Reconcile-logik som körs av både live-lyssnaren och resume-resyncen
+function applyRoomData(data) {
+    const prevLocked = isLocked;
+    isLocked = data.locked;
+    currentEvent = data.event;
 
-            // NYTT: Kolla om hosten precis klickat på "Rensa Buzzers"
-            const currentClearedTime = data.lastCleared?.toMillis() || 0;
-            if (currentClearedTime !== lastClearedTime) {
-                hasBuzzed = false;
-                lastClearedTime = currentClearedTime;
-            }
+    const currentClearedTime = data.lastCleared?.toMillis?.() || 0;
+    if (currentClearedTime !== lastClearedTime) {
+        hasBuzzed = false;
+        lastClearedTime = currentClearedTime;
+    }
 
-            if (prevLocked && !isLocked) {
-                hasBuzzed = false;
-                if (penaltyClicks > 0) {
-                    applyPenaltyDelay();
-                } else {
-                    updateUI();
-                }
-            } else {
-                updateUI();
-            }
+    if (prevLocked && !isLocked) {
+        hasBuzzed = false;
+        if (penaltyClicks > 0) {
+            applyPenaltyDelay();
+        } else {
+            updateUI();
         }
+    } else {
+        updateUI();
+    }
+}
+
+function listenToRoomStatus() {
+    if (unsubRoom) { try { unsubRoom(); } catch (_) {} unsubRoom = null; }
+    unsubRoom = onSnapshot(doc(db, "rooms", roomId), (docSnap) => {
+        if (docSnap.exists()) {
+            applyRoomData(docSnap.data());
+        }
+    }, (err) => {
+        console.error("listenToRoomStatus error, re-subscribing:", err);
+        unsubRoom = null;
+        setTimeout(() => { if (roomId) listenToRoomStatus(); }, 2000);
     });
+}
+
+// När fliken vaknar (iOS Safari kapar strömmen vid skärmlås / bakgrund):
+// hämta en färsk room-snapshot och bygg om lyssnaren omedelbart.
+async function resyncRoom() {
+    if (!roomId || !auth.currentUser) return;
+    try {
+        const snap = await getDoc(doc(db, "rooms", roomId));
+        if (snap.exists()) applyRoomData(snap.data());
+    } catch (e) {
+        console.error("resyncRoom getDoc error:", e);
+    }
+    listenToRoomStatus();
 }
 
 function applyPenaltyDelay() {
@@ -218,17 +256,22 @@ function applyPenaltyDelay() {
 
 
 function listenToTeammates() {
+    if (unsubTeammates) { try { unsubTeammates(); } catch (_) {} unsubTeammates = null; }
     const playersRef = collection(db, "rooms", roomId, "players");
     const q = query(playersRef, where("team", "==", playerTeam));
-    
-    onSnapshot(q, (snap) => {
+
+    unsubTeammates = onSnapshot(q, (snap) => {
         teammates = [];
         snap.forEach(docSnap => {
-            const p = docSnap.data(); 
+            const p = docSnap.data();
             p.uid = docSnap.id;
-            teammates.push(p); 
+            teammates.push(p);
         });
         updateUI();
+    }, (err) => {
+        console.error("listenToTeammates error, re-subscribing:", err);
+        unsubTeammates = null;
+        setTimeout(() => { if (roomId && playerTeam) listenToTeammates(); }, 2000);
     });
 }
 
